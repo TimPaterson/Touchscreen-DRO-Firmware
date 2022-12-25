@@ -39,6 +39,9 @@ void ToolLib::ToolAction(uint spot, int x, int y)
 
 	if (spot == ToolNumber)
 	{
+		if (!Actions::HasCalcValue())
+			return;
+			
 		val = Actions::GetCalcValue();
 		tool = (uint)std::min(val, (double)MaxToolNumber);
 
@@ -95,8 +98,9 @@ void ToolLib::ToolAction(uint spot, int x, int y)
 						StartEditTool();	// We're in the tool library
 					else
 					{
-						// If changing something, tool number no longer valid.
+						// If changing something, tool number and description no longer valid.
 						s_bufTool.number = 0;
+						s_editDesc.DeleteText();
 						SelectLine(NoCurrentLine);
 					}
 				}

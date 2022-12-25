@@ -89,6 +89,7 @@ FAT_DRIVES_LIST(&FlashDrive, &Sd);
 
 static const int AxisUpdateRate = 20;	// updates per second
 static const int FeedUpdateRate = 8;	// updates per second
+static const int MinBrightness = LcdBacklightPwmMax * 10 / 100;	// min = 10%
 
 PosSensor Qpos(&Eeprom.Data.QaxisInfo);
 AxisPos Xpos(&Eeprom.Data.XaxisInfo);
@@ -130,8 +131,8 @@ void ChangeScreenBrightness(int change)
 {
 	change = LcdBacklightPwmMax * change / 100;	// change was %
 	change += Eeprom.Data.Brightness;
-	if (change < 0)
-		change = 0;
+	if (change < MinBrightness)
+		change = MinBrightness;
 	if (change > LcdBacklightPwmMax)
 		change = LcdBacklightPwmMax;
 	Eeprom.Data.Brightness = change;
@@ -283,11 +284,12 @@ int main(void)
 		// Update the current feed rate
 		if (tmrFeed.CheckInterval_rate(FeedUpdateRate))
 		{
-			double	deltaX, deltaY, delta;
+			double	deltaX, deltaY, deltaZ, delta;
 
 			deltaX = Xpos.GetDistance();
 			deltaY = Ypos.GetDistance();
-			delta = sqrt(deltaX * deltaX + deltaY * deltaY);
+			deltaZ = Zpos.GetDistance();
+			delta = sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
 			// convert to per minute
 			Tools.ShowFeedRate(delta * 60.0 * FeedUpdateRate);
 		}

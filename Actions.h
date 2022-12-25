@@ -317,7 +317,7 @@ public:
 			if (s_state == AS_Empty)
 				ToValueState(pDisplay->GetPosition());
 			else
-				pDisplay->SetPosition(ToValueState());
+				pDisplay->SetPosition(ToValueStateClear());
 			break;
 
 		//*****************************************************************
@@ -386,10 +386,8 @@ public:
 			else
 			{
 				// Setting the value
-				val = ToValueState();
-				if (val > 10 || val < 1)
-					;// UNDONE: Display error
-				else
+				val = ToValueStateClear();
+				if (val <= 10 && val >= 1)
 				{
 					pSensor->SetResolution((uint)val);
 					ShowSettingsInfo();
@@ -409,7 +407,7 @@ public:
 			else
 			{
 				// Setting the value
-				val = ToValueState();
+				val = ToValueStateClear();
 				if (!pSensor->SetCorrectionPpm(val))
 					;	// UNDONE: Display error
 				ShowSettingsInfo();
@@ -500,7 +498,7 @@ public:
 				else
 				{
 					// Setting the value
-					val = ToValueState();
+					val = ToValueStateClear();
 					if (val < 60000 && val >= 100)
 					{
 						Eeprom.Data.MaxRpm = lround(val);
@@ -544,7 +542,7 @@ public:
 	{
 		double	val;
 
-		val = ToValueState();
+		val = ToValueStateClear();
 		// Negative values never allowed
 		if (val < 0)
 			val = -val;
@@ -602,6 +600,14 @@ protected:
 		if (s_op == OP_none)
 			s_arg1 = val;
 		s_state = AS_Value;
+		return val;
+	}
+	
+	static double ToValueStateClear()
+	{
+		double val = ToValueState();
+		ClearEntry();
+		s_CalcText.ClearArea();
 		return val;
 	}
 

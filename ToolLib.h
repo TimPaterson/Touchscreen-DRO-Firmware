@@ -240,6 +240,7 @@ public:
 	{
 		Lcd.EnablePip1(&ToolLibrary, 0, 0);
 		Lcd.EnablePip2(&m_scroll, 0, ToolListTop);
+		s_textMain.DisplayLine(PtrCurrentTool()); // restore if showing error
 	}
 
 	ListScroll *ListCapture(int x, int y, ScrollAreas spot)

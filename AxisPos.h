@@ -41,6 +41,23 @@ public:
 
 		return PosSensor::SetPosition(pos);
 	}
+	
+	double GetDistance()
+	{
+		double delta;
+		
+		delta = PosSensor::GetDistance();
+		
+		if (m_pSenseQ != NULL && !m_pSenseQ->IsDisabled())
+			delta += m_pSenseQ->GetDistance();
+			
+		return delta;
+	}
+	
+	double GetDistance(int delta)
+	{
+		return PosSensor::GetDistance(delta);
+	}
 
 	long GetSavePos()
 	{
