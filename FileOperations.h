@@ -143,6 +143,12 @@ public:
 		update.cb = cb;
 		return Seek(offset, hFile, STATE(update, seek));
 	}
+	
+	void AddDefaultExtension(char *pszFile, const char *pszExt)
+	{
+		if (strchr(pszFile, '.') == NULL)
+			strcat(pszFile, pszExt);
+	}
 
 public:
 	int Open(const char *psz, int drive, uint flags, uint state)

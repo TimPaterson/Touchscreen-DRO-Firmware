@@ -294,7 +294,10 @@ SetImportExportImages:
 		else
 		{
 			if (m_isExport)
+			{
+				FileOp.AddDefaultExtension(FileBrowser::GetPathBuf(), ".csv");
 				FileOp.ToolExport(FileBrowser::GetPathBuf(), Files.GetDrive());
+			}
 			else
 				FileOp.ToolImport(FileBrowser::GetPathBuf(), Files.GetDrive());
 		}
