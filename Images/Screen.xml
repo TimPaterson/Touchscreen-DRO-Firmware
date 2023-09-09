@@ -302,7 +302,6 @@
             ToolCell.Width = SpCellWidth * 2;
           	SpeedText.Text = Speed;
           </Set>
-          <Rectangle HotSpot="ToolSfm" Group="ToolLib" Height="SpCellHeight * 3" Width="SpCellWidth * 2"/>
         </Column>
         <Column Left="SpCellWidth + SpColSpace">
           <Set>
@@ -310,7 +309,6 @@
             ToolCell.Width = SpCellWidth * 2;
           	SpeedText.Text = Chip Load;
           </Set>
-          <Rectangle HotSpot="ToolChipLoad" Group="ToolLib" Height="SpCellHeight * 3" Width="SpCellWidth * 2"/>
         </Column>
       </Row>
       <Row>
@@ -322,6 +320,7 @@
         </Column>
         <Column>
           <Rectangle Name="Sfm" Left="15" Top="SpeedTextTop" Height="SmallTextHeight" Width="SpCellWidth - 16"/>
+          <Rectangle HotSpot="ToolSfm" Group="ToolLib" Height="SpCellHeight * 2" Width="SpCellWidth"/>
         </Column>
         <Column Left="SpColSpace">
           <Set>
@@ -331,6 +330,7 @@
         </Column>
         <Column>
           <Rectangle Name="ChipLoad" Left="8" Top="SpeedTextTop" Height="SmallTextHeight" Width="SpCellWidth - 9"/>
+          <Rectangle HotSpot="ToolChipLoad" Group="ToolLib" Height="SpCellHeight * 2" Width="SpCellWidth"/>
         </Column>
       </Row>
       <Row>
@@ -413,14 +413,21 @@
     <!-- Settings controls -->
     <Set>
       LgBtnWidth = BtnWidth * 2;
-    	SettingLeft = ScreenWidth - LgBtnWidth - KeySpace;
-    </Set>
+      SettingLeft = ScreenWidth - LgBtnWidth - KeySpace;
+      StandbyTop = KeySpace;
+      SettingsTop = StandbyTop + BtnHeight + KeySpace;
+      BrightnessTop = SettingsTop + BtnHeight + KeySpace;
+   </Set>
     <Color Name="SetBtnText" Color="ToggleOn"/>
-    <Rectangle HotSpot="Settings" Top="KeySpace" Left="SettingLeft" Height="BtnHeight"
+    <Rectangle HotSpot="Standby" Top="StandbyTop" Left="SettingLeft" Height="BtnHeight"
+      Width="LgBtnWidth" RadiusX="8" RadiusY="8" Fill="BtnBackground">
+      <TextBlock FontSize="BtnHeight * 2 / 5" FontFamily="Arial" Foreground="SetBtnText">Standby</TextBlock>
+    </Rectangle>
+    <Rectangle HotSpot="Settings" Top="SettingsTop" Left="SettingLeft" Height="BtnHeight"
       Width="LgBtnWidth" RadiusX="8" RadiusY="8" Fill="BtnBackground">
       <TextBlock FontSize="BtnHeight * 2 / 5" FontFamily="Arial" Foreground="SetBtnText">Settings</TextBlock>
     </Rectangle>
-    <Rectangle Top="BtnHeight + KeySpace * 2" Left="SettingLeft" Height="BtnHeight"
+    <Rectangle Top="BrightnessTop" Left="SettingLeft" Height="BtnHeight"
       Width="LgBtnWidth" RadiusX="8" RadiusY="8" Fill="BtnBackground">
       <TextBlock Top="5" FontSize="BtnHeight / 3" FontFamily="Arial" Foreground="SetBtnText">Brightness</TextBlock>
       <Rectangle HotSpot="BrightDown" Width="BtnWidth" Height="BtnHeight">
@@ -502,21 +509,68 @@
     </Rectangle>
     <Rectangle Area="CalcText" Left="KeypadLeft" Top="CalcTextTop" Width="KeypadWidth" Height="SmallTextHeight" Fill="CalcBackColor">
     </Rectangle>
-    <TextBlock Top="KeypadTop - 25" Left="KeypadLeft + 310" Font="CalcSmall">Memories</TextBlock>
 
     <!-- Toggle button locations (images overwritten) -->
-    <Ref RefName="InchMetric" Left="KeypadRight + KeySpace" Top="KeypadBottom - BtnHeight - KeySpace">
+    <Ref RefName="InchMetric" Left="KeypadRight + KeySpace" Top="KeypadBottom - BtnHeight">
       <Set>
         Button.Area = "InchMetric";
         Button.HotSpot = "InchMetric"
       </Set>
     </Ref>
-    <Ref RefName="Toggle" Left="KeypadRight + BtnWidth + 2 * KeySpace" Top="KeypadBottom - BtnHeight - KeySpace">
+    <Ref RefName="Toggle" Left="KeypadRight + BtnWidth + 2 * KeySpace" Top="KeypadBottom - BtnHeight">
       <Set>
         Button.Area = "AbsInc";
         Button.HotSpot = "AbsInc"
       </Set>
     </Ref>
+
+    <!-- Memories -->
+    <Set>
+      MemoryTop = KeypadTop + 2 * KeySpace;
+      MemoryLeft = KeypadLeft + KeypadWidth;
+    </Set>
+    <TextBlock Top="MemoryTop - SmallTextHeight" Left="MemoryLeft + 25" Font="CalcSmall">Memories</TextBlock>
+    <Grid Top="MemoryTop" Left="MemoryLeft" RowHeight="BtnHeight+KeySpace" ColumnWidth="BtnWidth+KeySpace">
+      <Default>
+        <Ref RefName="Memory" />
+      </Default>
+      <Row>
+        <Column>
+          <Set>
+            MemRect.HotSpot = Mem1;
+            MemRect.Fill = MemColorOdd;
+            MemDisp.Area = Mem1;
+          </Set>
+        </Column>
+      </Row>
+      <Row>
+        <Column>
+          <Set>
+            MemRect.HotSpot = Mem2;
+            MemRect.Fill = MemColorEven;
+            MemDisp.Area = Mem2;
+          </Set>
+        </Column>
+      </Row>
+      <Row>
+        <Column>
+          <Set>
+            MemRect.HotSpot = Mem3;
+            MemRect.Fill = MemColorOdd;
+            MemDisp.Area = Mem3;
+          </Set>
+        </Column>
+      </Row>
+      <Row>
+        <Column>
+          <Set>
+            MemRect.HotSpot = Mem4;
+            MemRect.Fill = MemColorEven;
+            MemDisp.Area = Mem4;
+          </Set>
+        </Column>
+      </Row>
+    </Grid>
 
     <!-- Keypad -->
     <Rectangle Top="KeypadTop" Left="KeypadLeft" Height="KeypadHeight" Width="KeypadWidth" Fill="Black">
@@ -558,14 +612,6 @@
               Button.HotSpot = Key_plus;
             </Set>
           </Column>
-          <ColumnNoDefault>
-            <Ref RefName="Memory"/>
-            <Set>
-              MemRect.HotSpot = Mem1;
-            	MemRect.Fill = MemColorOdd;
-            	MemDisp.Area = Mem1;
-            </Set>
-          </ColumnNoDefault>
         </Row>
         <Row>
           <Column>
@@ -593,14 +639,6 @@
               Button.HotSpot = Key_minus;
             </Set>
           </Column>
-          <ColumnNoDefault>
-            <Ref RefName="Memory"/>
-            <Set>
-              MemRect.HotSpot = Mem2;
-            	MemRect.Fill = MemColorEven;
-            	MemDisp.Area = Mem2;
-            </Set>
-          </ColumnNoDefault>
         </Row>
         <Row>
           <Column>
@@ -628,14 +666,6 @@
               Button.HotSpot = Key_mult;
             </Set>
           </Column>
-          <ColumnNoDefault>
-            <Ref RefName="Memory"/>
-            <Set>
-              MemRect.HotSpot = Mem3;
-            	MemRect.Fill = MemColorOdd;
-            	MemDisp.Area = Mem3;
-            </Set>
-          </ColumnNoDefault>
         </Row>
         <Row>
           <Column>
@@ -663,14 +693,6 @@
               Button.HotSpot = Key_divide;
             </Set>
           </Column>
-          <ColumnNoDefault>
-            <Ref RefName="Memory"/>
-            <Set>
-              MemRect.HotSpot = Mem4;
-            	MemRect.Fill = MemColorEven;
-            	MemDisp.Area = Mem4;
-            </Set>
-          </ColumnNoDefault>
         </Row>
         <Row>
           <Column>

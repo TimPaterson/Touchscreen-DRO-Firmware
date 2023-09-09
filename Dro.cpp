@@ -136,7 +136,7 @@ void ChangeScreenBrightness(int change)
 	if (change > LcdBacklightPwmMax)
 		change = LcdBacklightPwmMax;
 	Eeprom.Data.Brightness = change;
-	TCC1->CC[1].reg = change;
+	SetBrightnessPwm(change);
 }
 
 FatDateTime GetFatTime()
@@ -190,7 +190,7 @@ int main(void)
 	}
 
 	// Put EEPROM data into effect
-	TCC1->CC[1].reg = Eeprom.Data.Brightness;
+	SetBrightnessPwm(Eeprom.Data.Brightness);
 	Xpos.SensorInfoUpdate();
 	Ypos.SensorInfoUpdate();
 	Zpos.SensorInfoUpdate();
@@ -250,8 +250,11 @@ int main(void)
 
     while (1)
     {
-		wdt_reset();
+		while(PowerDown::IsStandby())
+			PowerDown::ResumeStandby();
 
+		wdt_reset();
+		
 		// Check status of SD card
 		if (!GetSdCd() == fSdOut && !FileOp.IsBusy())
 		{

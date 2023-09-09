@@ -88,7 +88,7 @@ private:
 		SPLLC2_Init = LcdScanFreq * 4 * 2 / OscFreq - 1,
 
 		// SDRAM Initialization values
-		SDRAR_Init = SDRAR_ColumnBits9 | SDRAR_RowBits12 | SDRAR_Banks4,
+		SDRAR_Init = SDRAR_ColumnBits9 | SDRAR_RowBits12 | SDRAR_Banks4 | SDRAR_RefreshPowerDown,
 		SDRMD_Init = SDRMD_CasClocks3 | SDRMD_DriverFull | SDRMD_ArrayFull,
 		SDRCR_Init = SDRCR_InitDone | SDRCR_ClearWarning | SDRCR_BusWidth16 | SDRCR_BurstSize256,
 

@@ -834,4 +834,16 @@ namespace RA8876const
 		SDRCR_BurstSize64 = 0x80,
 		SDRCR_BurstSize32 = 0xC0,
 	};
+
+	//************************************************************************
+	// Power management
+	
+	enum PMU_Bits
+	{
+		PMU_Standby = 0x01,
+		PMU_Suspend = 0x02,
+		PMU_Sleep = 0x03,
+		
+		PMU_PowerSave = 0x80,
+	};
 };

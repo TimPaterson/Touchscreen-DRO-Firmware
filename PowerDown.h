@@ -29,6 +29,32 @@ class PowerDown
 	#define pSaveEnd	(&pSaveStart[SaveRows * NVMCTRL_ROW_PAGES])
 
 public:
+	inline static bool IsStandby()		{ return s_isStandby; }
+		
+	static void EnterStandby()
+	{
+		WDT->CTRL.reg = 0;		// turn off watchdog
+		s_isStandby = true;
+		SetBrightnessPwm(0);
+		EIC->INTFLAG.reg = EI_Rtp;	// clear before enabling
+		EIC->INTENSET.reg = EI_Rtp;
+		Lcd.StartPowerSave();
+	}
+	
+	static void ResumeStandby()
+	{
+		__WFI();
+	}
+	
+	static void LeaveStandby()
+	{
+		Lcd.EndPowerSave();
+		EIC->INTENCLR.reg = EI_Rtp;
+		s_isStandby = false;
+		SetBrightnessPwm(Eeprom.Data.Brightness);
+		WDT->CTRL.reg = WDT_CTRL_ENABLE;	// enable watchdog
+	}
+	
 	static void Save() INLINE_ATTR
 	{
 		PowerDownSave	&save = *s_pSaveNext;
@@ -118,4 +144,5 @@ protected:
 
 	inline static PowerDownSave	*s_pSaveNext;
 	inline static ulong			s_version;
+	inline static byte			s_isStandby;
 };

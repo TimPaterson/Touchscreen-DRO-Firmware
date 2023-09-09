@@ -11,6 +11,9 @@
 #include "PowerDown.h"
 
 
+static constexpr double StandbyDebounceTimeMs = 20.0;
+
+
 //****************************************************************************
 // USART
 
@@ -62,6 +65,15 @@ void EIC_Handler()
 		Ypos.InputChange(uPortVal >> YposA_BIT);
 		Zpos.InputChange(uPortVal >> ZposA_BIT);
 		Qpos.InputChange(uPortVal >> QposA_BIT);
+	}
+	
+	// Touchscreen?
+	if (PowerDown::IsStandby() && (uIntFlags & EI_Rtp) && GetRtpPenIrq() == 0)
+	{
+		// debounce
+		Timer::Delay_ms(StandbyDebounceTimeMs);
+		if (GetRtpPenIrq() == 0)
+			PowerDown::LeaveStandby();
 	}
 }
 

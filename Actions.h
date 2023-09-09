@@ -13,6 +13,7 @@
 #include "ToolLib.h"
 #include "TouchCalibrate.h"
 #include "UpdateMgr.h"
+#include "PowerDown.h"
 
 
 class Actions
@@ -466,6 +467,10 @@ public:
 				UpdateEeprom();
 				break;
 
+			case Standby:
+				PowerDown::EnterStandby();
+				break;
+				
 			case Settings:
 				if (!Lcd.GetPip2()->IsEnabled())
 				{

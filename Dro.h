@@ -16,10 +16,12 @@
 #include "FatFileDef.h"
 
 
-#define PROGRAM_VERSION		3
-#define GRAPHICS_VERSION	1
+#define PROGRAM_VERSION		4
+#define GRAPHICS_VERSION	2
 #define FONT_VERSION		1
 
+// Debugging option
+//#define CONSOLE_TEST_POINT
 
 static constexpr double MmPerInch = 25.4;
 
@@ -35,7 +37,7 @@ void DumpCanvas(uint addr);
 // PA02 - in, Q position A (EXINT 2)
 // PA03 - in, Q position B (EXINT 3)
 // PA04 - analog in, supply voltage (AC AIN[0])
-// PA05 - in, console serial RX data (SERCOM 0 pad 1)
+// PA05 - in, console serial RX data (SERCOM 0 pad 1) or out, Test Point
 // PA06 - out, console serial TX data (SERCOM 0 pad 2)
 // PA07 - out, backlight PWM (TCC1 WO[1])
 // PA08 - in, supply low (NMI)
@@ -88,6 +90,7 @@ enum PortAbitMap
 	QposB_BIT,
 	AcIn_BIT,
 	ConsoleRx_BIT,
+	TestPoint_BIT = ConsoleRx_BIT,
 	ConsoleTx_BIT,
 	BacklightPwm_BIT,
 
@@ -121,6 +124,7 @@ enum PortApins
 	QposB_PIN =			(1 << QposB_BIT),
 	AcIn_PIN =			(1 << AcIn_BIT),
 	ConsoleRx_PIN =		(1 << ConsoleRx_BIT),
+	TestPoint_PIN =		(1 << TestPoint_BIT),
 	ConsoleTx_PIN =		(1 << ConsoleTx_BIT),
 	BacklightPwm_PIN =	(1 << BacklightPwm_BIT),
 
@@ -361,6 +365,10 @@ enum ExtIrq
 	EI_LcdWait =	(1 << EIBIT_LcdWait),
 };
 
+// Position sensors
+static constexpr uint PosSensorIrqMask = EI_QposA | EI_QposB | 
+	EI_YposA | EI_YposB | EI_ZposA | EI_ZposB | EI_XposA | EI_XposB;
+
 //*********************************************************************
 // Give the LCD an easy name.
 //
@@ -383,6 +391,8 @@ typedef DECLARE_TIMER(TC3, 1024) Timer;
 static constexpr int LcdBacklightPwmFreq = 200;
 static constexpr int LcdBacklightPwmMax = F_CPU / LcdBacklightPwmFreq -1;
 
+inline void SetBrightnessPwm(ulong pwmVal)	{ TCC1->CC[1].reg = pwmVal; }
+
 //*********************************************************************
 // Console (debug) serial port
 
@@ -400,10 +410,11 @@ extern Console_t Console;
 extern FILE Console_FILE;
 
 //*********************************************************************
-// Position sensors
+// Test Point -- if enabled, uses console receive pin as output
 
-static constexpr uint PosSensorIrqMask = EI_QposA | EI_QposB | 
-	EI_YposA | EI_YposB | EI_ZposA | EI_ZposB | EI_XposA | EI_XposB;
+#define SET_TEST_POINT		SetPinsA(TestPoint_PIN)
+#define CLEAR_TEST_POINT	ClearPinsA(TestPoint_PIN)
+#define TOGGLE_TEST_POINT	TogglePinsA(TestPoint_PIN)
 
 //*********************************************************************
 // Brown-out detector

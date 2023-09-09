@@ -29,6 +29,13 @@ public:
 	static TouchCanvas *GetMainImage()	{ return s_pMainImage; }
 	static PipInfo *GetPip1()			{ return &s_pip1; }
 	static PipInfo *GetPip2()			{ return &s_pip2; }
+		
+	static void StartPowerSave()		{ WriteReg(PMU, PMU_PowerSave | PMU_Sleep); }
+	static void EndPowerSave()
+	{
+		WriteReg(PMU, PMU_Sleep);
+		while (ReadData() & PMU_PowerSave);
+	}
 
 	static void SetMainImage(TouchCanvas *pCanvas)
 	{

@@ -32,7 +32,7 @@ void StartClock()
 	// Initialize clock generator 1 sourced by XOSC32K
 	GCLK->GENDIV.reg = GCLK_GENDIV_ID(1) | GCLK_GENDIV_DIV(1);
 	GCLK->GENCTRL.reg = GCLK_GENCTRL_SRC_XOSC32K | GCLK_GENCTRL_GENEN |
-		GCLK_GENCTRL_ID(1);
+		GCLK_GENCTRL_RUNSTDBY | GCLK_GENCTRL_ID(1);
 
 	// Clock DFLL from 32kHz clock generator 1
 	GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID_DFLL48 | GCLK_CLKCTRL_CLKEN |
@@ -77,13 +77,18 @@ void Init()
 
 	// Turn on clock to modules we use
 	PM->APBCMASK.reg = PM_APBCMASK_AC | PM_APBCMASK_TCC1;
+	PM->SLEEP.reg = PM_SLEEP_IDLE_CPU;
 	
 	// Set port pin output levels first
 	// RtpIrq_PIN input set high to pull-up
 	SetPinsA(SdCs_PIN | RtpCs_PIN);
 	SetPinsB(LcdCs_PIN | RtpIrq_PIN);
 	// Set port pin direction (1 = output)
+	#ifdef CONSOLE_TEST_POINT
+	DirWritePinsA(SdCs_PIN | RtpCs_PIN | TestPoint_PIN);
+	#else
 	DirWritePinsA(SdCs_PIN | RtpCs_PIN);
+	#endif
 	DirWritePinsB(LcdData_PIN | LcdE_PIN | LcdCD_PIN | LcdRW_PIN | LcdCs_PIN);
 	// Set all inputs to continuously sample
 	PORT->Group[0].CTRL.reg = 0xFFFFFFFF;
@@ -102,7 +107,7 @@ void Init()
 	// This is on MUX channel A
 	SetPortMuxConfigA(PORT_MUX_A, PORT_WRCONFIG_INEN, Nmi_PIN | LcdWait_PIN | LcdIrq_PIN | 
 		QposA_PIN | QposB_PIN | ZposA_PIN | ZposB_PIN | YposA_PIN | YposB_PIN | XposA_PIN | XposB_PIN);
-	SetPortMuxConfigB(PORT_MUX_A, PORT_WRCONFIG_INEN, MicroSdCd_PIN);
+	SetPortMuxConfigB(PORT_MUX_A, PORT_WRCONFIG_INEN, MicroSdCd_PIN | RtpIrq_PIN);
 
 	// Set up Analog Comparator input on PA04
 	// This in on MUX channel B
@@ -115,8 +120,12 @@ void Init()
 	// Set up SERCOM0 on PA05 (RX, pad 1) and PA06 (TX, pad 2)
 	// Set up SERCOM2 on PA09 (MISO, pad1), PA10 (MOSI, pad 2), PA11 (SCK, pad 3)
 	// This is on MUX channel D
+	#ifdef CONSOLE_TEST_POINT
+	SetPortMuxConfigA(PORT_MUX_D, PORT_WRCONFIG_INEN, ConsoleTx_PIN | SdMiso_PIN | SdMosi_PIN | SdSck_PIN);
+	#else
 	SetPortMuxConfigA(PORT_MUX_D, PORT_WRCONFIG_INEN, ConsoleRx_PIN | ConsoleTx_PIN | SdMiso_PIN | SdMosi_PIN | SdSck_PIN);
-
+	#endif
+	
 	// Set up TCC1 output W0[1] on PA07
 	// This is on MUX channel E
 	SetPortMuxA(PORT_MUX_E, BacklightPwm_PIN);
@@ -139,9 +148,10 @@ void Init()
 	AC->CTRLA.reg = AC_CTRLA_LPMUX | AC_CTRLA_RUNSTDBY(1) | AC_CTRLA_ENABLE;
 
 	// Set up EIC
-	// GCLK only needed in case we select filtering
+	// GCLK needed for edge detection and filtering
 	GCLK->CLKCTRL.reg = GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK0 | GCLK_CLKCTRL_ID_EIC;
 	EIC->INTENSET.reg = PosSensorIrqMask;
+	EIC->WAKEUP.reg = PosSensorIrqMask | EI_Rtp;
 
 #define IRQCONFIG(irq, sense, filter)	EicConfig[irq > 7].reg |= (sense | filter) << (irq > 7 ? irq - 8 : irq) * 4
 	EIC_CONFIG_Type	EicConfig[2];
@@ -161,7 +171,7 @@ void Init()
 	// LCD panel has active-low interrupt
 	// Use WAIT as event, requiring level detection
 	IRQCONFIG(EIBIT_LcdIrq, EIC_CONFIG_SENSE0_FALL, 0);
-	IRQCONFIG(EIBIT_LcdIrq, EIC_CONFIG_SENSE0_HIGH, 0);
+	IRQCONFIG(EIBIT_LcdWait, EIC_CONFIG_SENSE0_HIGH, 0);
 	// Possibly use MicroSD MISO as interrupt for write complete
 	// Possibly use MicroSD card detect as interrupt UNDONE: edge unknown
 	IRQCONFIG(EIBIT_SdMiso, EIC_CONFIG_SENSE0_RISE, 0);
@@ -170,6 +180,7 @@ void Init()
 	EIC->CONFIG[0].reg = EicConfig[0].reg;
 	EIC->CONFIG[1].reg = EicConfig[1].reg;
 	EIC->CTRL.reg = EIC_CTRL_ENABLE;
+	EIC->INTFLAG.reg = 0xFFFF;	// Errata: reset all flags after enable
 	NVIC_EnableIRQ(EIC_IRQn);
 
 	// Set up TCC1 as PWM for backlight
