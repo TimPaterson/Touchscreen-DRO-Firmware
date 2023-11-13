@@ -15,10 +15,10 @@ namespace RA8876const
 
 	enum Registers
 	{
-		SRR,		// Software Reset 
-		CCR,		// Chip Configuration 
-		MACR,		// Memory Access Control 
-		ICR,		// Input Control 
+		SRR,		// Software Reset
+		CCR,		// Chip Configuration
+		MACR,		// Memory Access Control
+		ICR,		// Input Control
 		MRWDP,		// Memory Data Read/Write Port
 
 		// PLL
@@ -30,16 +30,16 @@ namespace RA8876const
 		CPPLLC2,	// CCLK PLL Control 2
 
 		// Interrupt
-		INTEN,		// Interrupt Enable 
-		INTF,		// Interrupt Event Flag 
-		MINTFR,		// Mask Interrupt Flag 
+		INTEN,		// Interrupt Enable
+		INTF,		// Interrupt Event Flag
+		MINTFR,		// Mask Interrupt Flag
 
 		// GPIO
-		PUENR,		// Pull-up Control 
-		PSFSR,		// PIO Select/Function Select 
+		PUENR,		// Pull-up Control
+		PSFSR,		// PIO Select/Function Select
 
 		// LCD
-		MPWCTR,		// Main/PIP Window Control 
+		MPWCTR,		// Main/PIP Window Control
 		PIPCDEP,	// PIP Window Color Depth
 		DPCR,		// Display Configuration
 		PCSR,		// Panel Scan Clock and Data Setting
@@ -296,14 +296,14 @@ namespace RA8876const
 	//************************************************************************
 	// Chip Configuration Registers
 
-	// Software Reset Register
+	// 0x00: Software Reset Register
 	enum SRR_Bits
 	{
 		SRR_Reset = 0x01,	// Write-only
 		SRR_Warning = 0x01,	// Read-only mask
 	};
 
-	// Chip Configuration Register
+	// 0x01: Chip Configuration Register
 	enum CCR_Bits
 	{
 		// Choose one from each group
@@ -329,7 +329,7 @@ namespace RA8876const
 		CCR_PllReconfigure = 0x80
 	};
 
-	// Memory Access Control Register
+	// 0x02: Memory Access Control Register
 	enum MACR_Bits
 	{
 		// Set read & write to same order
@@ -343,7 +343,7 @@ namespace RA8876const
 		MACR_MaskHighEven = 0xC0,
 	};
 
-	// Input Control Register
+	// 0x03: Input Control Register
 	enum ICR_Bits
 	{
 		ICR_MemPort_Mask = 0x03,
@@ -363,7 +363,7 @@ namespace RA8876const
 	//************************************************************************
 	// PLL Control
 
-	// PLL control for SCLK, MCLK, and CCLK PLLs
+	// 0x05, 0x07, 0x09: PLL control for SCLK, MCLK, and CCLK PLLs
 	enum PLLC1_Bits
 	{
 		PLL_Prescale1 = 0x00,
@@ -386,7 +386,7 @@ namespace RA8876const
 	// Interrupt Control Registers
 
 	// These bits apply to all three interrupt control registers,
-	// INTEN, INTF, and MINTFR
+	// 0x0B - 0x0D: INTEN, INTF, and MINTFR
 	enum INTF_Bits
 	{
 		INTF_Pwm0 = 0x01,
@@ -402,7 +402,7 @@ namespace RA8876const
 	//************************************************************************
 	// LCD Display Control Registers
 
-	// Main/PIP Window Control Register
+	// 0x10: Main/PIP Window Control Register
 	enum MPWCTR_Bits
 	{
 		MPWCTR_SyncIdle = 0x01,
@@ -427,7 +427,7 @@ namespace RA8876const
 		MPWCTR_Pip1Enable = 0x80,
 	};
 
-	// PIP Window Color Depth Setting
+	// 0x11: PIP Window Color Depth Setting
 	enum PIPCDEP_Bits
 	{
 		PIPCDEP_Pip2Color_Mask = 0x03,
@@ -443,7 +443,7 @@ namespace RA8876const
 		PIPCDEP_Pip1Color24 = 0x08,
 	};
 
-	// Display Configuration Register
+	// 0x12: Display Configuration Register
 	enum DPCR_Bits
 	{
 		// Choose one from each group
@@ -468,7 +468,7 @@ namespace RA8876const
 		DPCR_PclkEdgeFalling = 0x80,
 	};
 
-	// Panel scan Clock and Data Setting Register
+	// 0x13: Panel scan Clock and Data Setting Register
 	enum PCSR_Bits
 	{
 		// Choose one from each group
@@ -497,7 +497,7 @@ namespace RA8876const
 		PCSR_HsyncActiveHigh = 0x80,
 	};
 
-	// Graphic / Text Cursor Control Register
+	// 0x3C: Graphic / Text Cursor Control Register
 	enum GTCCR_Bits
 	{
 		GTCCR_TextCursorBlink = 0x01,
@@ -523,7 +523,7 @@ namespace RA8876const
 	//************************************************************************
 	// Geometric Engine Control Registers
 
-	// Color Depth of Canvas & Active Window
+	// 0x5E: Color Depth of Canvas & Active Window
 	enum AW_COLOR_Bits
 	{
 		AW_COLOR_CanvasColor_Mask = 0x03,
@@ -538,7 +538,7 @@ namespace RA8876const
 		AW_COLOR_AddrModeLinear = 0x04,
 	};
 
-	// Draw Line / Triangle Control Register 0
+	// 0x67: Draw Line / Triangle Control Register 0
 	enum DCR0_Bits
 	{
 		DCR0_DrawLine = 0x00,
@@ -550,7 +550,7 @@ namespace RA8876const
 		DCR0_DrawActive = 0x80,
 	};
 
-	// Draw Circle/Ellipse/Ellipse Curve/Circle Square Control Register 1
+	// 0x76: Draw Circle/Ellipse/Ellipse Curve/Circle Square Control Register 1
 	enum DCR1_Bits
 	{
 		DCR1_DrawEllipse = 0x00,
@@ -567,6 +567,7 @@ namespace RA8876const
 	//************************************************************************
 	// Block Transfer Engine (BTE) Control Registers
 
+	// 0x90: BTE Function Control Register 0
 	enum BTE_CTRL0_Bits
 	{
 		BTE_CTRL0_Pattern8x8 = 0x00,
@@ -575,6 +576,7 @@ namespace RA8876const
 		BTE_CTRL0_Enable = 0x10,
 	};
 
+	// 0x91: BTE Function Control Register 1
 	enum BTE_CTRL1_Bits
 	{
 		BTE_CTRL1_OpcodeMpuWriteWithRop = 0x00,
@@ -610,6 +612,7 @@ namespace RA8876const
 		BTE_CTRL1_BitStartShift = 4,
 	};
 
+	// 0x92: Source 0/1 & Destination Color Depth
 	enum BTE_COLR_Bits
 	{
 		BTE_COLR_DestColor_Mask = 0x03,
@@ -637,13 +640,13 @@ namespace RA8876const
 	//************************************************************************
 	// Serial Flash & SPI Master Control Registers
 
-	// Serial flash DMA Controller REG
+	// 0xB6: Serial flash DMA Controller REG
 	enum DMA_CTRL_Bits
 	{
 		DMA_CTRL_Start = 0x01,
 	};
 
-	// Serial Flash/ROM Controller Register
+	// 0xB7: Serial Flash/ROM Controller Register
 	enum SFL_CTRL_Bits
 	{
 		SFL_CTRL_ReadCommand03 = 0x00,
@@ -662,7 +665,7 @@ namespace RA8876const
 		SFL_CTRL_Select1 = 0x80,
 	};
 
-	// SPI master Control Register
+	// 0xB9: SPI master Control Register
 	enum SPIMCR_Bits
 	{
 		SPIMCR_SpiMode0 = 0x00,
@@ -686,7 +689,7 @@ namespace RA8876const
 		SPIMCR_IrqDisable = 0x00,
 	};
 
-	// SPI master Status Register
+	// 0xBA: SPI master Status Register
 	enum SPIMSR_Bits
 	{
 		SPIMSR_Idle = 0x04,
@@ -700,7 +703,7 @@ namespace RA8876const
 	//************************************************************************
 	// Text Engine
 
-	// Character Control Register 0
+	// 0xCC: Character Control Register 0
 	enum CCR0_Bits
 	{
 		CCR0_CharSet_Mask = 0x03,
@@ -720,7 +723,7 @@ namespace RA8876const
 		CCR0_CharSourceRam = 0x80,
 	};
 
-	// Character Control Register 1
+	// 0xCD: Character Control Register 1
 	enum CCR1_Bits
 	{
 		CCR1_CharHeightX_Mask = 0x03,
@@ -744,7 +747,7 @@ namespace RA8876const
 		CCR1_CharBackgroundTransparent = 0x40,
 	};
 
-	// GT Character ROM Select
+	// 0xCE: GT Character ROM Select
 	enum GTFNT_SEL_Bits
 	{
 		GTFNT_SEL_GT21L16T1W = 0x00,
@@ -755,7 +758,7 @@ namespace RA8876const
 		GTFNT_SEL_GT21L34S1W = 0xC0,
 	};
 
-	// GT Character ROM Control register
+	// 0x:CF: GT Character ROM Control register
 	enum GTFNT_CR
 	{
 		GTENT_CR_CharWidthFixed = 0x00,
@@ -767,10 +770,24 @@ namespace RA8876const
 		// There's more, but we don't care
 	};
 
+
+	//************************************************************************
+	// Power management
+
+	// 0xDF: Power Management register
+	enum PMU_Bits
+	{
+		PMU_Standby = 0x01,
+		PMU_Suspend = 0x02,
+		PMU_Sleep = 0x03,
+
+		PMU_PowerSave = 0x80,
+	};
+
 	//************************************************************************
 	// SDRAM Control
 
-	// SDRAM attribute register
+	// 0xE0: SDRAM attribute register
 	enum SDRAR_Bits
 	{
 		// Choose one from each group
@@ -792,7 +809,7 @@ namespace RA8876const
 		SDRAR_RefreshPowerDown = 0x80
 	};
 
-	// SDRAM mode register & extended mode register
+	// 0xE1: SDRAM mode register & extended mode register
 	enum SDRMD_Bits
 	{
 		// Choose one from each group
@@ -811,7 +828,7 @@ namespace RA8876const
 		SDRMD_ArraySixteenth = 0xC0,
 	};
 
-	// SDRAM Control register
+	// 0xE4: SDRAM Control register
 	enum SDRCR_Bits
 	{
 		// Choose one from each group
@@ -833,17 +850,5 @@ namespace RA8876const
 		SDRCR_BurstSize128 = 0x40,
 		SDRCR_BurstSize64 = 0x80,
 		SDRCR_BurstSize32 = 0xC0,
-	};
-
-	//************************************************************************
-	// Power management
-	
-	enum PMU_Bits
-	{
-		PMU_Standby = 0x01,
-		PMU_Suspend = 0x02,
-		PMU_Sleep = 0x03,
-		
-		PMU_PowerSave = 0x80,
 	};
 };

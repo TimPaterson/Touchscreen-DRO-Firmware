@@ -210,12 +210,12 @@ public:
 						cbTotal = pFirmwareSection->dataSize;
 
 						// See if we're leaving some out
-						if (!s_fWriteAll && pGraphicsSection->progVersion <= GRAPHICS_VERSION)
+						if (!s_fWriteAll && pGraphicsSection->progVersion == GRAPHICS_VERSION)
 							pGraphicsSection = NULL;
 						else
 							cbTotal += pGraphicsSection->dataSize;
 
-						if (!s_fWriteAll && pFontsSection->progVersion <= FONT_VERSION)
+						if (!s_fWriteAll && pFontsSection->progVersion == FONT_VERSION)
 							pFontsSection = NULL;
 						else
 							cbTotal += pFontsSection->dataSize;

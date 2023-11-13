@@ -425,7 +425,7 @@ void ToolLib::ShowToolInfo()
 void ToolLib::SetTime(uint spot)
 {
 	RtcTime	time;
-	uint	val;
+	uint	val = 0;
 
 	if (spot != AmPm)
 	{

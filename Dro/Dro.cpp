@@ -153,6 +153,7 @@ void PrintHelp()
 	printf("Commands:\n"
 		"f - Load fonts from USB file Fonts.bin\n"
 		"i - Load images from USB file Screen.bin\n"
+		"p - Toggle test pattern\n"
 		"t - Calibrate touchscreen\n"
 		"x - Reset\n"
 	);
@@ -166,6 +167,7 @@ int main(void)
 {
 	RtcTime	timeCur, timeSave;
 	bool	lcdPresent;
+	bool	isTestPattern = false;
 
 	StartClock();
 	Init();
@@ -392,6 +394,24 @@ FileErrChk:
 				printf("Loading image...");
 				err = FileOp.WriteFileToFlash("Screen.bin", FlashScreenStart);
 				goto FileErrChk;
+				
+			case 'p':
+				if (lcdPresent)
+				{
+					if (isTestPattern)
+					{
+						printf("Test pattern off\n");
+						Lcd.DisplayOn();	// turn off pattern
+						isTestPattern = false;
+					}
+					else
+					{
+						printf("Test pattern on\n");
+						Lcd.TestPattern();
+						isTestPattern = true;
+					}
+				}
+				break;				
 
 			case 't':
 				if (lcdPresent)

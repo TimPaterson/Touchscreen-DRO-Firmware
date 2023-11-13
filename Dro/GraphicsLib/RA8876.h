@@ -618,7 +618,7 @@ public:
 		} while (cb > 0);
 	}
 
-	void CopySerialMemToRam(ulong addrFlash, ulong addrRam, int cb, uint port) NO_INLINE_ATTR
+	static void CopySerialMemToRam(ulong addrFlash, ulong addrRam, int cb, uint port) NO_INLINE_ATTR
 	{
 		byte	modeSave;
 

@@ -72,20 +72,21 @@ private:
 	{
 		// Chip Configuration Registers
 		CCR_Init = CCR_BusWidth16 | CCR_SpiEnable | CCR_I2Cdisable | CCR_LcdWidth24 |
-			CCR_KeyScanDisable | CCR_WaitMaskOff | CCR_PllReconfigure,
+			CCR_KeyScanDisable | CCR_WaitMaskOff,
 
 		// PLL Initialization values
-		// VCO has range 100 - 600 MHz. Dividing output by 4 will give
-		// range 25 - 150 MHz, which covers full MCLK and CCLK range.
-		// Using SCLK extra divider of 2 makes it 12.5 - 75 MHz.
-		MPLLC1_Init = PLL_Prescale1 | PLL_Postscale4,
-		MPLLC2_Init = SdramFreq * 4 / OscFreq - 1,
+		// VCO has range 250 - 500 MHz. Dividing output by 4 will gives
+		// range 62.5 - 125 MHz for MCLK and CCLK. Divide by 8 gives 
+		// 31.25 - 62.5 MHz for SCLK.
+		
+		RA_MPLLC1_Init = PLL_Postscale4,
+		RA_MPLLC2_Init = SdramFreq * 4 / OscFreq - 1,
 
-		CPLLC1_Init = PLL_Prescale1 | PLL_Postscale4,
-		CPLLC2_Init = CoreFreq * 4 / OscFreq - 1,
+		RA_CPLLC1_Init = PLL_Postscale4,
+		RA_CPLLC2_Init = CoreFreq * 4 / OscFreq - 1,
 
-		SPLLC1_Init = PLL_Prescale1 | PLL_Postscale4 | SPLL_ExtraDiv2,
-		SPLLC2_Init = LcdScanFreq * 4 * 2 / OscFreq - 1,
+		RA_SPLLC1_Init = PLL_Postscale8,
+		RA_SPLLC2_Init = LcdScanFreq * 8 / OscFreq - 1,
 
 		// SDRAM Initialization values
 		SDRAR_Init = SDRAR_ColumnBits9 | SDRAR_RowBits12 | SDRAR_Banks4 | SDRAR_RefreshPowerDown,
@@ -121,6 +122,23 @@ private:
 			SPIMCR_OvfIrqMasked | SPIMCR_SlaveSelectCs1 | SPIMCR_IrqEnable,
 	};
 
+	enum LT7683_InitValues
+	{
+		// Use same PLL values as RA8876, but they are set differently.
+		// SCLK is called PCLK on LT7683.
+		
+		LT_DivRatioPos = 1,		// position in control register 1 of divider ratio
+		
+		LT_MPLLC1_Init = 4 << LT_DivRatioPos,
+		LT_MPLLC2_Init = SdramFreq * 4 / OscFreq,
+
+		LT_CPLLC1_Init = 4 << LT_DivRatioPos,
+		LT_CPLLC2_Init = CoreFreq * 4 / OscFreq,
+
+		LT_SPLLC1_Init = 8 << LT_DivRatioPos,
+		LT_SPLLC2_Init = LcdScanFreq * 8 / OscFreq,
+	};
+	
 	//*********************************************************************
 	// Serial memory setup needed in class RA8876
 	//*********************************************************************
@@ -302,7 +320,13 @@ public:
 		while (GetStatus() & STATUS_InhibitOperation);
 
 		// Initialize PLL
-		WriteRegListSlow(s_arPllInitList, _countof(s_arPllInitList));
+		// PLL initialization differs for RA8876 vs. LT7683
+		// We can tell which we have by reading SRR
+		if (ReadRegSlow(SRR) == 0)
+			WriteRegListSlow(s_arLT7683_PllInitList, _countof(s_arLT7683_PllInitList));
+		else
+			WriteRegListSlow(s_arRA8876_PllInitList, _countof(s_arRA8876_PllInitList));
+		
 		// Wait for PLL to stabilize
 		while((ReadRegSlow(CCR) & CCR_PllReconfigure) == 0);
 
@@ -340,17 +364,30 @@ public:
 	// const (flash) data
 	//*********************************************************************
 protected:
-	inline static const RegValue s_arPllInitList[] = {
+	inline static const RegValue s_arRA8876_PllInitList[] = {
 		// Initialize PLL
-		SPPLLC1, SPLLC1_Init,
-		SPPLLC2, SPLLC2_Init,
-		MPPLLC1, MPLLC1_Init,
-		MPPLLC2, MPLLC2_Init,
-		CPPLLC1, CPLLC1_Init,
-		CPPLLC2, CPLLC2_Init,
+		SPPLLC1, RA_SPLLC1_Init,
+		SPPLLC2, RA_SPLLC2_Init,
+		MPPLLC1, RA_MPLLC1_Init,
+		MPPLLC2, RA_MPLLC2_Init,
+		CPPLLC1, RA_CPLLC1_Init,
+		CPPLLC2, RA_CPLLC2_Init,
 		// Also write to CCR to reconfigure PLL
-		CCR, CCR_Init & ~CCR_PllReconfigure,
 		CCR, CCR_Init,
+		CCR, CCR_Init | CCR_PllReconfigure,
+	};
+
+	inline static const RegValue s_arLT7683_PllInitList[] = {
+		// Initialize PLL
+		SPPLLC1, LT_SPLLC1_Init,
+		SPPLLC2, LT_SPLLC2_Init,
+		MPPLLC1, LT_MPLLC1_Init,
+		MPPLLC2, LT_MPLLC2_Init,
+		CPPLLC1, LT_CPLLC1_Init,
+		CPPLLC2, LT_CPLLC2_Init,
+		// Also write to SSR to reconfigure PLL
+		SRR, 0,
+		SRR, CCR_PllReconfigure,
 	};
 
 	inline static const RegValue s_arSdramInitList[] = {
