@@ -372,8 +372,8 @@ protected:
 		MPPLLC2, RA_MPLLC2_Init,
 		CPPLLC1, RA_CPLLC1_Init,
 		CPPLLC2, RA_CPLLC2_Init,
-		// Also write to CCR to reconfigure PLL
 		CCR, CCR_Init,
+		// Also write to CCR to reconfigure PLL
 		CCR, CCR_Init | CCR_PllReconfigure,
 	};
 
@@ -385,6 +385,7 @@ protected:
 		MPPLLC2, LT_MPLLC2_Init,
 		CPPLLC1, LT_CPLLC1_Init,
 		CPPLLC2, LT_CPLLC2_Init,
+		CCR, CCR_Init,
 		// Also write to SSR to reconfigure PLL
 		SRR, 0,
 		SRR, CCR_PllReconfigure,
