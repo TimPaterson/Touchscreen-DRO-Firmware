@@ -9,15 +9,15 @@
 #include "Dro.h"
 #include "AxisDisplay.h"
 #include "PowerDown.h"
-
-
-static constexpr double StandbyDebounceTimeMs = 20.0;
+#include "GT9271.h"
 
 
 //****************************************************************************
 // USART
 
 DEFINE_USART_ISR(SERCOM0, Console)
+
+DEFINE_I2C_ISR(SERCOM1, CapTouch)
 
 //****************************************************************************
 // Power down
@@ -68,13 +68,8 @@ void EIC_Handler()
 	}
 	
 	// Touchscreen?
-	if (PowerDown::IsStandby() && (uIntFlags & EI_Rtp) && GetRtpPenIrq() == 0)
-	{
-		// debounce
-		Timer::Delay_ms(StandbyDebounceTimeMs);
-		if (GetRtpPenIrq() == 0)
-			PowerDown::LeaveStandby();
-	}
+	if (PowerDown::IsStandby() && (uIntFlags & EI_Touch) && pTouch->CheckLeaveStandby())
+		PowerDown::LeaveStandby();
 }
 
 //****************************************************************************

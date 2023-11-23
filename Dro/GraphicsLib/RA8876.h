@@ -66,19 +66,15 @@ class RA8876 : public RA8876_Base
 	//
 	// protected:
 	//	CoreFreq
-	//	SpiClock0
+	//	SpiDivisor0
 	//	SFL_CTRL_Init0
-	//	SpiClock1
+	//	SpiDivisor1
 	//	SFL_CTRL_Init1
 	//
 	//*********************************************************************
 
-protected:
-	static constexpr int SpiDivisor0 = (CoreFreq / 2 + SpiClock0 - 1) / SpiClock0 - 1;
-	static constexpr int SpiDivisor1 = (CoreFreq / 2 + SpiClock1 - 1) / SpiClock1 - 1;
-
 	//*********************************************************************
-	// Optionally non-inline cover functions
+	// Optional non-inline cover functions
 
 public:
 	static void WriteAddr(uint addr)
@@ -105,7 +101,7 @@ public:
 
 	static uint ReadData16()
 	{
-		return ReadData16();
+		return ReadData16Inline();
 	}
 
 #endif	// RA8876_16BIT_BUS
@@ -219,70 +215,44 @@ public:
 #ifdef RA8876_16BIT_BUS
 
 #define	DATA_BUS_WIDTH	AW_COLOR_DataWidth16
-#define FIFO_READ_FCN	FastFifoRead16
-#define FIFO_WRITE_FCN	FastFifoWrite16
+#define FIFO_READ_FCN	ReadData16
+#define FIFO_WRITE_FCN	WriteData16
 
-	static ushort FifoRead16()
-	{
-		WaitFifoRead();
-		WriteAddr(MRWDP);
-		return ReadData16();
-	}
-
-	static void FifoWrite16(uint val)
-	{
-		WaitFifoWrite();
-		WriteAddr(MRWDP);
-		WriteData16(val);
-	}
-
-	static void FastFifoWrite16(uint val)
-	{
-		// Assumes address register already set
-		//WaitFifoWrite();
-		WriteData16(val);
-	}
-
-	static ushort FastFifoRead16()
-	{
-		// Assumes address register already set
-		//WaitFifoRead();
-		return ReadData16();
-	}
+typedef ushort dat_t;
 
 #else
 
 #define	DATA_BUS_WIDTH	AW_COLOR_DataWidth8
-#define FIFO_READ_FCN	FastFifoRead
-#define FIFO_WRITE_FCN	FastFifoWrite
+#define FIFO_READ_FCN	ReadData
+#define FIFO_WRITE_FCN	WriteData
 
-#endif	// RA8876_16BIT_BUS
+typedef byte dat_t;
 
-	static void WriteRam(ulong addr, int cb, const void *pv)
+#endif	// else RA8876_16BIT_BUS
+
+	static void WriteRam(ulong addr, int cb, const void *pv) NO_INLINE_ATTR
 	{
 		byte	aw_color;
-		ushort	*pData;
 
 		aw_color = ReadReg(AW_COLOR);
 		WriteReg(AW_COLOR, AW_COLOR_AddrModeLinear | DATA_BUS_WIDTH);
 		WriteReg32(CURH0, addr);
 		WriteAddr(MRWDP);
-		for (pData = (ushort *)pv; cb > 0; cb -= 2)
+		for (dat_t* pData = (dat_t *)pv; cb > 0; cb -= sizeof *pData)
 			FIFO_WRITE_FCN(*pData++);
 		WaitWhileBusy();
 		WriteReg(AW_COLOR, aw_color);
 	}
 
-	static void ReadRam(ulong addr, int cb, const void *pv)
+	static void ReadRam(ulong addr, int cb, const void *pv) NO_INLINE_ATTR
 	{
 		byte	aw_color;
-		ushort	*pData;
 
 		aw_color = ReadReg(AW_COLOR);
 		WriteReg(AW_COLOR, AW_COLOR_AddrModeLinear | DATA_BUS_WIDTH);
 		WriteReg32(CURH0, addr);
 		ReadReg(MRWDP);	// dummy read
-		for (pData = (ushort *)pv; cb > 0; cb -= 2)
+		for (dat_t* pData = (dat_t *)pv; cb > 0; cb -= sizeof *pData)
 			*pData++ = FIFO_READ_FCN();
 		WriteReg(AW_COLOR, aw_color);
 	}
@@ -433,9 +403,15 @@ public:
 	//
 	// NOTE: These functions block until completion.
 
-	static byte SerialReadByte()
+	static uint SerialReadByteInline() INLINE_ATTR
 	{
-		//while (ReadReg(SPIMSR) & SPIMSR_RxFifoEmpty);	// wait for byte
+		while (ReadRegInline(SPIMSR) & SPIMSR_RxFifoEmpty);	// wait for byte
+		return ReadRegInline(SPIDR);
+	}
+
+	static uint SerialReadByte()
+	{
+		while (ReadReg(SPIMSR) & SPIMSR_RxFifoEmpty);	// wait for byte
 		return ReadReg(SPIDR);
 	}
 
@@ -444,17 +420,29 @@ public:
 		//while (ReadReg(SPIMSR) & SPIMSR_TxFifoFull);	// wait for space
 		WriteReg(SPIDR, val);
 	}
+	
+	static void SerialSetDivisor(uint port)
+	{
+		if (SpiDivisor0 != SpiDivisor1)
+			WriteReg(SPI_DIVSOR, port ? SpiDivisor1 : SpiDivisor0);
+	}
 
+	static uint SerialSelectPort(uint port)
+	{
+		SerialSetDivisor(port);
+		return SPIMCR_SpiMode0 | (port ? SPIMCR_SlaveSelectCs1 : SPIMCR_SlaveSelectCs0);
+	}
+	
 	static void SerialSelectPort(uint mode, uint port)
 	{
 		WriteReg(SFL_CTRL, (port ? SFL_CTRL_Init1 : SFL_CTRL_Init0) | mode);
-		WriteReg(SPI_DIVSOR, port ? SpiDivisor1 : SpiDivisor0);
+		SerialSetDivisor(port);
 	}
 
 	static byte SerialMemGetStatus()
 	{
-		byte	bCs;
-		byte	val;
+		uint	bCs;
+		uint	val;
 
 		bCs = ReadReg(SPIMCR);
 		WriteData(bCs | SPIMCR_SlaveSelectActive);
@@ -471,15 +459,11 @@ public:
 		return SerialMemGetStatus() & SFSTAT_Busy;
 	}
 
-	static void SerialMemRead(ulong addr, int cb, byte *pb, uint port) NO_INLINE_ATTR
+	static uint SerialMemReadPrep(ulong addr, uint port)
 	{
-		uint	val;
-		byte	bCs;
-		int		cbWrite;
-		int		cbRead;
+		uint	bCs;
 
-		WriteReg(SPI_DIVSOR, port ? SpiDivisor1 : SpiDivisor0);
-		bCs = SPIMCR_SpiMode0 | (port ? SPIMCR_SlaveSelectCs1 : SPIMCR_SlaveSelectCs0);
+		bCs = SerialSelectPort(port);
 		WriteReg(SPIMCR, bCs | SPIMCR_SlaveSelectActive);
 
 		// Chip is selected, send command
@@ -488,6 +472,18 @@ public:
 		WriteData(addr >> 8);
 		WriteData(addr);
 		WriteData(0);		// dummy byte for fast read
+		
+		return bCs;
+	}
+
+	static void SerialMemRead(ulong addr, int cb, byte *pb, uint port) NO_INLINE_ATTR
+	{
+		uint	val;
+		uint	bCs;
+		int		cbWrite;
+		int		cbRead;
+
+		bCs = SerialMemReadPrep(addr, port);
 
 		cbWrite = cb;
 		cbRead = -5;	// ignore response to command bytes
@@ -499,7 +495,8 @@ public:
 			cbRead++;
 			if (cbWrite > 0)
 			{
-				WriteReg(SPIDR, 0);
+				// SPIDR was left as current register by SerialReadByte()
+				WriteData(0);
 				cbWrite--;
 			}
 		} while (cbRead < cb);
@@ -511,10 +508,9 @@ public:
 	{
 		byte	*pb = (byte *)pv;
 		int		cbPage;
-		byte	bCs;
+		uint	bCs;
 
-		WriteReg(SPI_DIVSOR, port ? SpiDivisor1 : SpiDivisor0);
-		bCs = SPIMCR_SpiMode0 | (port ? SPIMCR_SlaveSelectCs1 : SPIMCR_SlaveSelectCs0);
+		bCs = SerialSelectPort(port);
 		cbPage = cb;
 
 		// Enable writes
@@ -563,7 +559,7 @@ public:
 	static int SerialMemEraseStart(ulong addr, int cb, uint port) NO_INLINE_ATTR
 	{
 		uint	cmd;
-		byte	bCs;
+		uint	bCs;
 
 		// Do a full 32K block if aligned and want that much
 		if (cb >= SerialFlashBlockSize && addr % SerialFlashBlockSize == 0)
@@ -580,8 +576,7 @@ public:
 			cb = SerialFlashSectorSize - addr % SerialFlashSectorSize;
 		}
 
-		WriteReg(SPI_DIVSOR, port ? SpiDivisor1 : SpiDivisor0);
-		bCs = SPIMCR_SpiMode0 | (port ? SPIMCR_SlaveSelectCs1 : SPIMCR_SlaveSelectCs0);
+		bCs = SerialSelectPort(port);
 
 		// Enable writes
 		WriteReg(SPIMCR, bCs | SPIMCR_SlaveSelectActive);

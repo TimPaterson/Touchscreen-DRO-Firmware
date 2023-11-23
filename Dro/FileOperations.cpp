@@ -347,6 +347,7 @@ NextFolder:
 			//*************************************************************
 			// Read firmware into video RAM
 
+#if UDATE_FROM_VIDEO_RAM
 			OP_STATE(update, seek)
 				TO_STATE(update, read);
 ReadMore:
@@ -368,6 +369,7 @@ ReadMore:
 				OpDone();
 				UpdateMgr::ReadUpdateComplete(hFile);
 			END_STATE
+#endif
 
 		}
 	}

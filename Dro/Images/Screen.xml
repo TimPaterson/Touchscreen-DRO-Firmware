@@ -2161,4 +2161,26 @@
       </Rectangle>
     </Rectangle>
   </Canvas>
+
+  <Set>
+    NoTouchHeight = 200;
+    NoTouchWidth = ScreenWidth - KeypadLeft;
+    NoTouchTitleHeight = 60;
+    NoTouchTextHeight = 30;
+    NoTouchLine1 = NoTouchTitleHeight;
+    NoTouchLine2 = NoTouchLine1 + NoTouchTextHeight;
+    NoTouchLine3 = NoTouchLine2 + NoTouchTextHeight;
+    NoTouchLine4 = NoTouchLine3 + NoTouchTextHeight;
+  </Set>
+  <Set ShowValue="NoTouchTop">KeypadTop</Set>
+  <Set ShowValue="NoTouchLeft">KeypadLeft</Set>
+  <Canvas Name="NoTouchPanel" Width="NoTouchWidth" Height="NoTouchHeight" ColorDepth="Color16bpp" Fill="ScreenBackColor">
+    <Rectangle HotSpot="HaveMouse" Width="NoTouchWidth" Height="NoTouchHeight" StrokeThickness="5" Stroke="Red">
+      <TextBlock FontSize="40" Height="NoTouchTitleHeight">Touch Input Not Found</TextBlock>
+      <TextBlock FontSize="20" Height="NoTouchTextHeight" Top="NoTouchLine1">You can try cycling power to check again.</TextBlock>
+      <TextBlock FontSize="20" Height="NoTouchTextHeight" Top="NoTouchLine2">Readouts are active but cannot be reset.</TextBlock>
+      <TextBlock FontSize="20" Height="NoTouchTextHeight" Top="NoTouchLine3">USB mouse can be used; click here if you</TextBlock>
+      <TextBlock FontSize="20" Height="NoTouchTextHeight" Top="NoTouchLine4">have one installed.</TextBlock>
+    </Rectangle>
+	</Canvas>
 </Project>

@@ -144,16 +144,18 @@ private:
 	//*********************************************************************
 protected:
 	static constexpr long SpiClock0 = std::min(MaxSpiClock0, CoreFreq / 2);
+	static constexpr int SpiDivisor0 = (CoreFreq / 2 + SpiClock0 - 1) / SpiClock0 - 1;
 	static constexpr int SFL_CTRL_Init0 = SFL_CTRL_Select0 | SFL_CTRL_ReadCommand0B | SFL_CTRL_AddrBits24;
 
 	static constexpr long SpiClock1 = std::min(MaxSpiClock1, CoreFreq / 2);
+	static constexpr int SpiDivisor1 = (CoreFreq / 2 + SpiClock1 - 1) / SpiClock1 - 1;
 	static constexpr int SFL_CTRL_Init1 = SFL_CTRL_Select1 | SFL_CTRL_ReadCommand3B | SFL_CTRL_AddrBits24;
 
 	//*********************************************************************
 	// Hardware-specific I/O needed in class RA8876
 	//*********************************************************************
 protected:
-	static uint GetStatus()
+	static uint GetStatus() NO_INLINE_ATTR
 	{
 		uint	status;
 
@@ -172,20 +174,21 @@ protected:
 	static void WriteAddrInline(uint addr) INLINE_ATTR
 	{
 		// Write address
-		ClearLcdPin(LcdRW | LcdCs | LcdCD);
+		ClearLcdPinInline(LcdRW | LcdCs | LcdCD);
 		PORTB->OUT.Lcd8 = addr;	// Address
-		ToggleEnable();
-		SetLcdPin(LcdCD | LcdCs);
+		ToggleEnableInline();
+		SetLcdPinInline(LcdCD | LcdCs);
 	}
 
+public:
 	static void WriteDataInline(uint val) INLINE_ATTR
 	{
 		// Write data
-		SetLcdPin(LcdCD);
-		ClearLcdPin(LcdRW | LcdCs);
+		SetLcdPinInline(LcdCD);
+		ClearLcdPinInline(LcdRW | LcdCs);
 		PORTB->OUT.Lcd8 = val;	// Data
-		ToggleEnable();
-		SetLcdPin(LcdCs);
+		ToggleEnableInline();
+		SetLcdPinInline(LcdCs);
 	}
 
 	static uint ReadDataInline() INLINE_ATTR
@@ -194,13 +197,13 @@ protected:
 
 		// Read data
 		PORTB->DIR.Lcd16 = 0;	// Switch to inputs
-		ClearLcdPin(LcdCs);
-		SetLcdPin(LcdCD | LcdRW);
-		SetLcdPin(LcdE);	// toggle E
+		ClearLcdPinInline(LcdCs);
+		SetLcdPinInline(LcdCD | LcdRW);
+		SetLcdPinInline(LcdE);	// toggle E
 		Timer::ShortDelay_clocks(2);
 		val = PORTB->IN.Lcd8;
-		ClearLcdPin(LcdE);
-		SetLcdPin(LcdCs);
+		ClearLcdPinInline(LcdE);
+		SetLcdPinInline(LcdCs);
 		PORTB->DIR.Lcd16 = LcdData16;	// Switch back to outputs
 		return val;
 	}
@@ -210,14 +213,13 @@ protected:
 	static void WriteData16Inline(uint val) INLINE_ATTR
 	{
 		// Write data
-		SetLcdPin(LcdCD);
-		ClearLcdPin(LcdRW | LcdCs);
+		SetLcdPinInline(LcdCD);
+		ClearLcdPinInline(LcdRW | LcdCs);
 		PORTB->OUT.Lcd16 = val;	// Data
-		ToggleEnable();
-		SetLcdPin(LcdCs);
+		ToggleEnableInline();
+		SetLcdPinInline(LcdCs);
 	}
 
-public:
 	// This must be able to fully inline so it can be in RAM for 
 	// programming flash
 	static uint ReadData16Inline() INLINE_ATTR
@@ -242,27 +244,37 @@ public:
 	//*********************************************************************
 
 public:
-	static void WriteReg(uint addr, uint val)
+	static void WriteRegInline(uint addr, uint val) INLINE_ATTR
 	{
 		WriteAddrInline(addr);
 		WriteDataInline(val);
 	}
 
-	static uint ReadReg(uint addr)
+	static uint ReadRegInline(uint addr) INLINE_ATTR
 	{
 		WriteAddrInline(addr);
 		return ReadDataInline();
+	}
+
+	static void WriteReg(uint addr, uint val)
+	{
+		WriteRegInline(addr, val);
+	}
+
+	static uint ReadReg(uint addr)
+	{
+		return ReadRegInline(addr);
 	}
 
 	//*********************************************************************
 	// Hardware-specific RA8876 I/O
 	//*********************************************************************
 private:
-	static void ToggleEnable() INLINE_ATTR
+	static void ToggleEnableInline() INLINE_ATTR
 	{
-		SetLcdPin(LcdE);	// toggle E
+		SetLcdPinInline(LcdE);	// toggle E
 		Timer::ShortDelay_clocks(1);
-		ClearLcdPin(LcdE);
+		ClearLcdPinInline(LcdE);
 	}
 
 	// When the RA8876 is first powered on, it runs on the crystal clock
@@ -312,6 +324,7 @@ public:
 			return false;	// screen not present
 
 		// Make sure we're ready to accept commands
+		WriteRegSlow(PMU, 0);	// Make sure not in power-down
 		while (GetStatus() & (STATUS_InhibitOperation | STATUS_CoreBusy));
 
 		// Software reset
@@ -420,5 +433,6 @@ protected:
 		MPWCTR,	MPWCTR_Init,
 		GTFNT_SEL, GTFNT_SEL_GT30L32S4W,
 		DPCR,	DPCR_Init,
+		SPI_DIVSOR, SpiDivisor0,
 	};
 };

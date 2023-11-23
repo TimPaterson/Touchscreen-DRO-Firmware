@@ -46,6 +46,7 @@ public:
 
 	void UpdateDisplay()
 	{
+		s_Display.SetArea(*m_pAxisArea);
 		if (m_pAxisPos->IsDisabled())
 		{
 			s_Display.ClearArea();
@@ -53,7 +54,6 @@ public:
 		}
 
 		s_Display.SetTextColor(m_textColor);
-		s_Display.SetArea(*m_pAxisArea);
 		s_Display.PrintNum(Eeprom.Data.fIsMetric ? "%8.2f" : "%8.4f", m_pAxisPos->GetPosition());
 	}
 

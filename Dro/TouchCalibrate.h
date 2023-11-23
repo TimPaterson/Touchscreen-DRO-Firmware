@@ -122,7 +122,7 @@ ShowButtons:
 
 				if (flags & TOUCH_Start)
 				{
-					pSpot = this->TestHit(Touch.GetX(), Touch.GetY());
+					pSpot = this->TestHit(pTouch->GetX(), pTouch->GetY());
 					if (pSpot != NULL && pSpot != NOT_ON_CANVAS)
 					{
 						if (pSpot->id == HOTSPOT_Done)
@@ -205,8 +205,8 @@ Restart:
 		} while (!tmr.CheckDelay_ms(TouchTimeMs));
 
 		// Held on target for required time, use final value
-		point.x = Touch.GetRawX();
-		point.y = Touch.GetRawY();
+		point.x = pTouch->GetRawX();
+		point.y = pTouch->GetRawY();
 
 		// Now erase the target
 		DrawTarget(target, true);
@@ -282,7 +282,7 @@ Restart:
 	{
 		uint	flags;
 
-		while (!(Touch.Process()))
+		while (!(pTouch->Process()))
 		{
 			wdt_reset();
 			if (Console.IsByteReady())
@@ -291,13 +291,13 @@ Restart:
 				return AbortFlag;
 			}
 		}
-		flags = Touch.GetTouch();
+		flags = pTouch->GetTouch();
 
 		// show cursor at touch position
 		if (fShow && flags & TOUCH_Touched)
 		{
 			EnableGraphicsCursor(GTCCR_GraphicCursorSelect2);
-			SetGraphicsCursorPosition(Touch.GetX() - 16, Touch.GetY() - 16);
+			SetGraphicsCursorPosition(pTouch->GetX() - 16, pTouch->GetY() - 16);
 		}
 		else
 			DisableGraphicsCursor();				

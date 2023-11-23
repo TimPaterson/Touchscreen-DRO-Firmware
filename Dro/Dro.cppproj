@@ -312,6 +312,9 @@
     <Compile Include="GraphicsLib\TouchCanvas.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="GT9271.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="Images\Pointer.c">
       <SubType>compile</SubType>
     </Compile>
@@ -375,7 +378,7 @@
     <Compile Include="PosSensor.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="ResTouch.h">
+    <Compile Include="TouchMgr.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="TouchCalibrate.h">

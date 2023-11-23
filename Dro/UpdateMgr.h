@@ -32,6 +32,7 @@ class UpdateMgr
 	enum UpdateState
 	{
 		UPDT_None,
+		UPDT_Firmware,
 		UPDT_Graphics,
 		UPDT_Fonts,
 	};
@@ -226,8 +227,14 @@ public:
 						s_progressVal = 0;
 						s_progress.SetValue(0);
 
+#if UDATE_FROM_VIDEO_RAM
 						// Step 1: Read program into video RAM
 						FileOp.ReadFirmware(RamUpdateStart, pFirmwareSection->dataSize, pFirmwareSection->dataStart, hFile);
+#else
+						// Step 1: Read program into serial flash
+						s_updateState = UPDT_Firmware;
+						FileOp.WriteToFlash(FlashUpdateStart, pFirmwareSection->dataSize, pFirmwareSection->dataStart, hFile);
+#endif
 					}
 					else
 					{
@@ -250,6 +257,7 @@ InvalidHeader:
 	};
 #pragma GCC diagnostic pop
 
+#if UDATE_FROM_VIDEO_RAM
 	static void ReadUpdateComplete(uint hFile)
 	{
 		s_updateState = UPDT_Graphics;
@@ -258,11 +266,24 @@ InvalidHeader:
 		else
 			FlashWriteComplete(hFile);	// pretend we finished the graphics
 	}
+#endif
 
 	static void FlashWriteComplete(uint hFile)
 	{
 		switch (s_updateState)
 		{
+#if !UDATE_FROM_VIDEO_RAM
+		case UPDT_Firmware:
+			s_updateState = UPDT_Graphics;
+			if (s_pGraphicsSection != NULL)
+			{
+				FileOp.WriteToFlash(FlashScreenStart, s_pGraphicsSection->dataSize, s_pGraphicsSection->dataStart, hFile);
+				break;
+			}
+			//
+			// Fall into case of Graphics complete
+			//			
+#endif
 		case UPDT_Graphics:
 			if (s_pFontsSection != NULL)
 			{
@@ -275,7 +296,11 @@ InvalidHeader:
 			//
 		case UPDT_Fonts:
 			FatSys::Close(hFile);
+#if UDATE_FROM_VIDEO_RAM
 			PrepFirmwareUpdate(RamUpdateStart);
+#else
+			PrepFirmwareUpdate(FlashUpdateStart);
+#endif
 			UpdateFirmware(s_pFirmwareSection->dataSize);
 			break;
 
@@ -429,22 +454,45 @@ protected:
 	{
 		WDT->CTRL.reg = 0;	// turn off WDT
 
+#if UDATE_FROM_VIDEO_RAM
 		// Queue up RA8876 data port
 		Lcd.WriteReg(AW_COLOR, AW_COLOR_AddrModeLinear | DATA_BUS_WIDTH);
 		Lcd.WriteReg32(CURH0, addr);
 		Lcd.ReadReg(MRWDP);	// dummy read
+#else
+		Lcd.SerialMemReadPrep(addr, 1);
+#endif
 	}
 
 	//*********************************************************************
-	// Function in RAM used to program flash
+	// Functions in RAM used to program flash
 	//*********************************************************************
 protected:
+
+#if !UDATE_FROM_VIDEO_RAM
+	RAMFUNC_ATTR static uint SerialReadByte()
+	{
+		uint val = Lcd.SerialReadByteInline();
+		
+		// SPIDR was left as current register by SerialReadByteInline()
+		Lcd.WriteDataInline(0);	// seed next read
+			
+		return val;
+	}
+#endif
+	
 	RAMFUNC_ATTR NO_INLINE_ATTR static void UpdateFirmware(int cb)
 	{
 		ushort	*pFlash;
 
 		pFlash = NULL;	// start programming at address zero
 		__disable_irq();
+		
+#if !UDATE_FROM_VIDEO_RAM
+		// Pump out the response to command bytes
+		for (int i = 0; i < 5; i++)
+			SerialReadByte();
+#endif
 
 		while (cb > 0)
 		{
@@ -457,7 +505,14 @@ protected:
 
 			// Copy the data 16 bits at a time
 			for (int i = FLASH_PAGE_SIZE; i > 0 && cb > 0; i -= 2, cb -= 2)
+			{
+#if UDATE_FROM_VIDEO_RAM
 				*pFlash++ = Lcd.ReadData16Inline();
+#else
+				uint val = SerialReadByte();
+				*pFlash++ = (SerialReadByte() << 8) + val;
+#endif
+			}
 
 			// Write the page
 			Nvm::WritePageReady();

@@ -521,6 +521,10 @@ public:
 				Eeprom.StartSave();	// save all changes
 				UpdateMgr::Open();
 				break;
+				
+			case HaveMouse:
+				Lcd.DisablePip1();
+				break;
 			}
 			return;
 		}

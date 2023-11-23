@@ -34,11 +34,12 @@ public:
 	static void EnterStandby()
 	{
 		WDT->CTRL.reg = 0;		// turn off watchdog
-		s_isStandby = true;
 		SetBrightnessPwm(0);
-		EIC->INTFLAG.reg = EI_Rtp;	// clear before enabling
-		EIC->INTENSET.reg = EI_Rtp;
 		Lcd.StartPowerSave();
+		pTouch->WaitTouchRelease();	// block until touch released
+		s_isStandby = true;
+		EIC->INTFLAG.reg = EI_Touch;	// clear before enabling
+		EIC->INTENSET.reg = EI_Touch;
 	}
 	
 	static void ResumeStandby()
@@ -48,10 +49,11 @@ public:
 	
 	static void LeaveStandby()
 	{
-		Lcd.EndPowerSave();
-		EIC->INTENCLR.reg = EI_Rtp;
-		s_isStandby = false;
 		SetBrightnessPwm(Eeprom.Data.Brightness);
+		Lcd.EndPowerSave();
+		pTouch->WaitTouchRelease();	// block until touch released
+		EIC->INTENCLR.reg = EI_Touch;
+		s_isStandby = false;
 		WDT->CTRL.reg = WDT_CTRL_ENABLE;	// enable watchdog
 	}
 	

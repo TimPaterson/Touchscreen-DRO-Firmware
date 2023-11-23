@@ -32,6 +32,7 @@ static const int MegaByte = 0x100000;
 // for RA8876 startup code
 static const int FlashScreenStart = SerialFlashBlockSize;
 static const int FlashFontStart = 14 * MegaByte;
+static const int FlashUpdateStart = 16 * MegaByte - MaxProgramSize;
 
 static const int RamUpdateStart = 0;
 static const int RamScreenStart = RamUpdateStart + MaxProgramSize;

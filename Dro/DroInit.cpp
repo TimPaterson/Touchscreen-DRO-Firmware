@@ -80,21 +80,17 @@ void Init()
 	PM->SLEEP.reg = PM_SLEEP_IDLE_CPU;
 	
 	// Set port pin output levels first
-	// RtpIrq_PIN input set high to pull-up
-	SetPinsA(SdCs_PIN | RtpCs_PIN);
-	SetPinsB(LcdCs_PIN | RtpIrq_PIN);
+	// TouchIrq_PIN input set high to pull-up
+	// CtpReset_PIN (output) is also RtpMiso_PIN (input). We're setting it as
+	// the output for now, but in moment we'll switch it to the SERCOM1 mux.
+	SetPinsA(SdCs_PIN | RtpCs_PIN | CtpReset_PIN);
+	SetPinsB(LcdCs_PIN | TouchIrq_PIN);
 	// Set port pin direction (1 = output)
-	#ifdef CONSOLE_TEST_POINT
-	DirWritePinsA(SdCs_PIN | RtpCs_PIN | TestPoint_PIN);
-	#else
-	DirWritePinsA(SdCs_PIN | RtpCs_PIN);
-	#endif
+	DirWritePinsA(SdCs_PIN /*also TP1_PIN*/ | RtpCs_PIN | CtpReset_PIN | TP2_PIN);
 	DirWritePinsB(LcdData_PIN | LcdE_PIN | LcdCD_PIN | LcdRW_PIN | LcdCs_PIN);
 	// Set all inputs to continuously sample
 	PORT->Group[0].CTRL.reg = 0xFFFFFFFF;
 	PORT->Group[1].CTRL.reg = 0xFFFFFFFF;
-	// Turn on pull-up
-	SetPortConfigB(PORT_WRCONFIG_INEN | PORT_WRCONFIG_PULLEN, RtpIrq_PIN);
 	// Turn on input buffers
 	SetPortConfigB(PORT_WRCONFIG_INEN, LcdData_PIN);
 
@@ -102,12 +98,13 @@ void Init()
 	// Port pin multiplexers
 
 	// Set up PA08 as NMI
-	// Set up LCD WAIT, LCD IRQ, RTP IRQ, and SD card detect as interrupts or events
+	// Set up LCD WAIT, LCD IRQ, touch IRQ, and SD card detect as interrupts or events
 	// Set up all the position sensor inputs as external interrupts
 	// This is on MUX channel A
 	SetPortMuxConfigA(PORT_MUX_A, PORT_WRCONFIG_INEN, Nmi_PIN | LcdWait_PIN | LcdIrq_PIN | 
 		QposA_PIN | QposB_PIN | ZposA_PIN | ZposB_PIN | YposA_PIN | YposB_PIN | XposA_PIN | XposB_PIN);
-	SetPortMuxConfigB(PORT_MUX_A, PORT_WRCONFIG_INEN, MicroSdCd_PIN | RtpIrq_PIN);
+	SetPortMuxConfigB(PORT_MUX_A, PORT_WRCONFIG_INEN, MicroSdCd_PIN);
+	SetPortMuxConfigB(PORT_MUX_A, PORT_WRCONFIG_INEN | PORT_WRCONFIG_PULLEN, TouchIrq_PIN);
 
 	// Set up Analog Comparator input on PA04
 	// This in on MUX channel B
@@ -120,8 +117,8 @@ void Init()
 	// Set up SERCOM0 on PA05 (RX, pad 1) and PA06 (TX, pad 2)
 	// Set up SERCOM2 on PA09 (MISO, pad1), PA10 (MOSI, pad 2), PA11 (SCK, pad 3)
 	// This is on MUX channel D
-	#ifdef CONSOLE_TEST_POINT
-	SetPortMuxConfigA(PORT_MUX_D, PORT_WRCONFIG_INEN, ConsoleTx_PIN | SdMiso_PIN | SdMosi_PIN | SdSck_PIN);
+	#ifdef USE_TEST_POINTS
+	SetPortMuxConfigA(PORT_MUX_D, PORT_WRCONFIG_INEN, ConsoleRx_PIN | ConsoleTx_PIN | SdMiso_PIN | SdMosi_PIN);
 	#else
 	SetPortMuxConfigA(PORT_MUX_D, PORT_WRCONFIG_INEN, ConsoleRx_PIN | ConsoleTx_PIN | SdMiso_PIN | SdMosi_PIN | SdSck_PIN);
 	#endif
@@ -143,15 +140,15 @@ void Init()
 
 	// Set up analog comparator to monitor power supply
 	GCLK->CLKCTRL.reg = GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK0 | GCLK_CLKCTRL_ID_AC_DIG;
-	AC->COMPCTRL[0].reg = AC_COMPCTRL_OUT_ASYNC | AC_COMPCTRL_MUXPOS_PIN0 |AC_COMPCTRL_MUXNEG_BANDGAP | 
-		AC_COMPCTRL_SPEED_HIGH | AC_COMPCTRL_INTSEL_FALLING | AC_COMPCTRL_ENABLE;
+	AC->COMPCTRL[0].reg = AC_COMPCTRL_OUT_SYNC | AC_COMPCTRL_MUXPOS_PIN0 |AC_COMPCTRL_MUXNEG_BANDGAP | 
+		AC_COMPCTRL_FLEN_MAJ5 | AC_COMPCTRL_SPEED_HIGH | AC_COMPCTRL_INTSEL_FALLING | AC_COMPCTRL_ENABLE;
 	AC->CTRLA.reg = AC_CTRLA_LPMUX | AC_CTRLA_RUNSTDBY(1) | AC_CTRLA_ENABLE;
 
 	// Set up EIC
 	// GCLK needed for edge detection and filtering
 	GCLK->CLKCTRL.reg = GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK0 | GCLK_CLKCTRL_ID_EIC;
 	EIC->INTENSET.reg = PosSensorIrqMask;
-	EIC->WAKEUP.reg = PosSensorIrqMask | EI_Rtp;
+	EIC->WAKEUP.reg = PosSensorIrqMask | EI_Touch;
 
 #define IRQCONFIG(irq, sense, filter)	EicConfig[irq > 7].reg |= (sense | filter) << (irq > 7 ? irq - 8 : irq) * 4
 	EIC_CONFIG_Type	EicConfig[2];
@@ -166,8 +163,8 @@ void Init()
 	IRQCONFIG(EIBIT_YposB, EIC_CONFIG_SENSE0_BOTH, 0);
 	IRQCONFIG(EIBIT_ZposA, EIC_CONFIG_SENSE0_BOTH, 0);
 	IRQCONFIG(EIBIT_ZposB, EIC_CONFIG_SENSE0_BOTH, 0);
-	// Resistive touch panel has active-low interrupt
-	IRQCONFIG(EIBIT_Rtp, EIC_CONFIG_SENSE0_FALL, 0);
+	// Touch panel has active-low interrupt
+	IRQCONFIG(EIBIT_Touch, EIC_CONFIG_SENSE0_FALL, 0);
 	// LCD panel has active-low interrupt
 	// Use WAIT as event, requiring level detection
 	IRQCONFIG(EIBIT_LcdIrq, EIC_CONFIG_SENSE0_FALL, 0);
@@ -181,6 +178,8 @@ void Init()
 	EIC->CONFIG[1].reg = EicConfig[1].reg;
 	EIC->CTRL.reg = EIC_CTRL_ENABLE;
 	EIC->INTFLAG.reg = 0xFFFF;	// Errata: reset all flags after enable
+	// lower EIC priority so I2C can get interrupts
+	NVIC_SetPriority(EIC_IRQn, 1);
 	NVIC_EnableIRQ(EIC_IRQn);
 
 	// Set up TCC1 as PWM for backlight

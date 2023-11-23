@@ -17,11 +17,22 @@
 
 
 #define PROGRAM_VERSION		5
-#define GRAPHICS_VERSION	2
+#define GRAPHICS_VERSION	3
 #define FONT_VERSION		1
 
-// Debugging option
-//#define CONSOLE_TEST_POINT
+// Debugging options
+#ifdef DEBUG
+//#define USE_TEST_POINTS	// uses SD card pins, J12 2 & 4
+#endif
+
+// A firmware update requires storing new firmware locally as it's
+// read off the flash drive. Originally, it was stored in video
+// RAM, which works fine on the RA8876. However, for unknown 
+// reasons, the RAM gets corrupted using the LT7683. So now the
+// firmware is programmed into the serial flash instead. This
+// constant switches between these choices to preserve the old code.
+//
+#define UDATE_FROM_VIDEO_RAM	0
 
 static constexpr double MmPerInch = 25.4;
 
@@ -37,21 +48,21 @@ void DumpCanvas(uint addr);
 // PA02 - in, Q position A (EXINT 2)
 // PA03 - in, Q position B (EXINT 3)
 // PA04 - analog in, supply voltage (AC AIN[0])
-// PA05 - in, console serial RX data (SERCOM 0 pad 1) or out, Test Point
+// PA05 - in, console serial RX data (SERCOM 0 pad 1)
 // PA06 - out, console serial TX data (SERCOM 0 pad 2)
 // PA07 - out, backlight PWM (TCC1 WO[1])
 // PA08 - in, supply low (NMI)
 // PA09 - in, MicroSD DOUT/MISO (SERCOM 2 pad 1 & EXINT 9)
 // PA10 - out, MicroSD DIN/MOSI (SERCOM 2 pad 2)
-// PA11 - out, MicroSD SCK (SERCOM 2 pad 3)
+// PA11 - out, MicroSD SCK (SERCOM 2 pad 3) or Test Point 2
 // PA12 - out, supply low (analog comparator CMP[0])
 // PA13 - in, Z position A (EXINT 13)
 // PA14 - in, Z position B (EXINT 14)
-// PA15 - out, MicroSD CS
-// PA16 - out, RTP DIN/MOSI (SERCOM 1 pad 0)
-// PA17 - out, RTP SCK (SERCOM 1 pad 1)
+// PA15 - out, MicroSD CS or Test Point 1
+// PA16 - out, RTP DIN/MOSI or CTP SDA (SERCOM 1 pad 0)
+// PA17 - out, RTP SCK or CTP SCL (SERCOM 1 pad 1)
 // PA18 - out, RTP CS
-// PA19 - in, RTP DOUT/MISO (SERCOM 1 pad 3)
+// PA19 - in, RTP DOUT/MISO (SERCOM 1 pad 3) or CTP Reset
 // PA20 - in, Y position A (EXINT 4)
 // PA21 - in, Y position B (EXINT 5)
 // PA22 - in, X position A (EXINT 6)
@@ -77,7 +88,7 @@ void DumpCanvas(uint addr);
 // PB13 - in/out, RA8876 DB13
 // PB14 - in/out, RA8876 DB14
 // PB15 - in/out, RA8876 DB15
-// PB16 - in w/pull-up, RTP IRQ (EXINT 0)
+// PB16 - in w/pull-up, Touch IRQ (EXINT 0)
 // PB17 - in, MicroSD card detect (EXINT 1)
 // PB22 - out, RA8876 E (TC7 WO[0])
 // PB23 - out, RA8876 C/D
@@ -90,7 +101,6 @@ enum PortAbitMap
 	QposB_BIT,
 	AcIn_BIT,
 	ConsoleRx_BIT,
-	TestPoint_BIT = ConsoleRx_BIT,
 	ConsoleTx_BIT,
 	BacklightPwm_BIT,
 
@@ -98,15 +108,18 @@ enum PortAbitMap
 	SdMiso_BIT,
 	SdMosi_BIT,
 	SdSck_BIT,
+	TP2_BIT = SdSck_BIT,
 	AcOut_BIT,
 	ZposA_BIT,
 	ZposB_BIT,
 	SdCs_BIT,
+	TP1_BIT = SdCs_BIT,
 
 	RtpMosi_BIT,
 	RtpSck_BIT,
 	RtpCs_BIT,
 	RtpMiso_BIT,
+	CtpReset_BIT = RtpMiso_BIT,
 	YposA_BIT,
 	YposB_BIT,
 	XposA_BIT,
@@ -124,7 +137,6 @@ enum PortApins
 	QposB_PIN =			(1 << QposB_BIT),
 	AcIn_PIN =			(1 << AcIn_BIT),
 	ConsoleRx_PIN =		(1 << ConsoleRx_BIT),
-	TestPoint_PIN =		(1 << TestPoint_BIT),
 	ConsoleTx_PIN =		(1 << ConsoleTx_BIT),
 	BacklightPwm_PIN =	(1 << BacklightPwm_BIT),
 
@@ -141,6 +153,7 @@ enum PortApins
 	RtpSck_PIN =		(1 << RtpSck_BIT),
 	RtpCs_PIN =			(1 << RtpCs_BIT),
 	RtpMiso_PIN =		(1 << RtpMiso_BIT),
+	CtpReset_PIN =		(1 << CtpReset_BIT),
 	YposA_PIN =			(1 << YposA_BIT),
 	YposB_PIN =			(1 << YposB_BIT),
 	XposA_PIN =			(1 << XposA_BIT),
@@ -150,11 +163,14 @@ enum PortApins
 	UsbDp_PIN =			(1 << UsbDp_BIT),
 	LcdWait_PIN =		(1 << LcdWait_BIT),
 	LcdIrq_PIN =		(1 << LcdIrq_BIT),
+	
+	TP1_PIN =			(1 << TP1_BIT),
+	TP2_PIN =			(1 << TP2_BIT),
 };
 
 enum PortBbitMap
 {
-	RtpIrq_BIT = 16,
+	TouchIrq_BIT = 16,
 	MicroSdCd_BIT,
 	LcdE_BIT = 22,
 	LcdCD_BIT,
@@ -165,7 +181,7 @@ enum PortBbitMap
 enum PortBpins
 {
 	LcdData_PIN =	0xFFFF,
-	RtpIrq_PIN =	(1 << RtpIrq_BIT),
+	TouchIrq_PIN =	(1 << TouchIrq_BIT),
 	MicroSdCd_PIN =	(1 << MicroSdCd_BIT),
 	LcdE_PIN =		(1 << LcdE_BIT),
 	LcdCD_PIN =		(1 << LcdCD_BIT),
@@ -197,13 +213,13 @@ union PortAreg
 	{
 		byte	b0;
 		byte	Sd;
-		byte	Rtp;
+		byte	Touch;
 		byte	Lcd;
 	};
 };
 
 static constexpr int PortASdPos = offsetof(PortAreg, Sd) * 8;
-static constexpr int PortARtpPos = offsetof(PortAreg, Rtp) * 8;
+static constexpr int PortATouchPos = offsetof(PortAreg, Touch) * 8;
 static constexpr int PortALcdPos = offsetof(PortAreg, Lcd) * 8;
 
 typedef PortIoGroup<PortAreg> PortIoA;
@@ -211,7 +227,8 @@ typedef PortIoGroup<PortAreg> PortIoA;
 enum  PortAregMap
 {
 	SdCs =		(1 << (SdCs_BIT - PortASdPos)),
-	RtpCs =		(1 << (RtpCs_BIT - PortARtpPos)),
+	RtpCs =		(1 << (RtpCs_BIT - PortATouchPos)),
+	CtpReset =	(1 << (CtpReset_BIT - PortATouchPos)),
 	LcdWait =	(1 << (LcdWait_BIT - PortALcdPos)),
 	LcdIrq =	(1 << (LcdIrq_BIT - PortALcdPos)),
 };
@@ -221,8 +238,11 @@ enum  PortAregMap
 inline void SetSdCs() { PORTA->OUTSET.Sd = SdCs; }
 inline void ClearSdCs() { PORTA->OUTCLR.Sd = SdCs; }
 
-inline void SetRtpCs() { PORTA->OUTSET.Rtp = RtpCs; }
-inline void ClearRtpCs() { PORTA->OUTCLR.Rtp = RtpCs; }
+inline void SetRtpCs() { PORTA->OUTSET.Touch = RtpCs; }
+inline void ClearRtpCs() { PORTA->OUTCLR.Touch = RtpCs; }
+
+inline void SetCtpReset() { PORTA->OUTSET.Touch = CtpReset; }
+inline void ClearCtpReset() { PORTA->OUTCLR.Touch = CtpReset; }
 
 inline int GetLcdWait() { return PORTA->IN.Lcd & LcdWait; }
 inline int GetLcdIrq() { return PORTA->IN.Lcd & LcdIrq; }
@@ -258,7 +278,7 @@ enum  PortBregMap
 	LcdData8 = 0xFF,
 	LcdData16 = 0xFFFF,
 
-	RtpIrq =	(1 << (RtpIrq_BIT - PortBCtrlPos)),
+	TouchIrq =	(1 << (TouchIrq_BIT - PortBCtrlPos)),
 	MicroSdCd =	(1 << (MicroSdCd_BIT - PortBCtrlPos)),
 	LcdE =		(1 << (LcdE_BIT - PortBCtrlPos)),
 	LcdCD =		(1 << (LcdCD_BIT - PortBCtrlPos)),
@@ -269,7 +289,13 @@ enum  PortBregMap
 #define PORTB	((volatile PortIoB *)&PORT_IOBUS->Group[1])
 
 inline int GetSdCd()		{ return PORTB->IN.Ctrl & MicroSdCd; }
-inline int GetRtpPenIrq()	{ return PORTB->IN.Ctrl & RtpIrq; }
+inline int GetTouchIrq()	{ return PORTB->IN.Ctrl & TouchIrq; }
+
+// TouchIrq is temporarily an output for capacitive touch panel
+inline void SetTouchIrqIn() { PORTB->DIRCLR.Ctrl = TouchIrq; }
+inline void SetTouchIrqOut() { PORTB->DIRSET.Ctrl = TouchIrq; }
+inline void SetTouchIrq() { PORTB->OUTSET.Ctrl = TouchIrq; }
+inline void ClearTouchIrq() { PORTB->OUTCLR.Ctrl = TouchIrq; }
 
 INLINE_ATTR inline void SetLcdPinInline(ushort pins)
 {
@@ -314,7 +340,7 @@ inline void ClearLcdPin(ushort pins)
 //*********************************************************************
 // External Interrupt summary
 //
-// EXINT 0 - RTP IRQ
+// EXINT 0 - Touch IRQ
 // EXINT 1 - MicroSD card detect
 // EXINT 2 - Q position A
 // EXINT 3 - Q position B
@@ -333,7 +359,7 @@ inline void ClearLcdPin(ushort pins)
 
 enum ExtIrqBit
 {
-	EIBIT_Rtp,
+	EIBIT_Touch,
 	EIBIT_SdCd,
 	EIBIT_QposA,
 	EIBIT_QposB,
@@ -350,7 +376,7 @@ enum ExtIrqBit
 
 enum ExtIrq
 {
-	EI_Rtp =		(1 << EIBIT_Rtp),
+	EI_Touch =		(1 << EIBIT_Touch),
 	EI_SdCd =		(1 << EIBIT_SdCd),
 	EI_QposA =		(1 << EIBIT_QposA),
 	EI_QposB =		(1 << EIBIT_QposB),
@@ -412,9 +438,27 @@ extern FILE Console_FILE;
 //*********************************************************************
 // Test Point -- if enabled, uses console receive pin as output
 
-#define SET_TEST_POINT		SetPinsA(TestPoint_PIN)
-#define CLEAR_TEST_POINT	ClearPinsA(TestPoint_PIN)
-#define TOGGLE_TEST_POINT	TogglePinsA(TestPoint_PIN)
+#ifdef USE_TEST_POINTS
+
+#define SET_TP1		SetPinsA(TP1_PIN)
+#define CLEAR_TP1	ClearPinsA(TP1_PIN)
+#define TOGGLE_TP1	TogglePinsA(TP1_PIN)
+
+#define SET_TP2		SetPinsA(TP2_PIN)
+#define CLEAR_TP2	ClearPinsA(TP2_PIN)
+#define TOGGLE_TP2	TogglePinsA(TP2_PIN)
+
+#else
+
+#define SET_TP1
+#define CLEAR_TP1
+#define TOGGLE_TP1
+
+#define SET_TP2
+#define CLEAR_TP2
+#define TOGGLE_TP2
+
+#endif
 
 //*********************************************************************
 // Brown-out detector

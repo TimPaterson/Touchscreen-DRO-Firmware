@@ -9,19 +9,8 @@
 #pragma once
 
 #include <Com/Spi.h>
-#include "ResTouch.h"
+#include "TouchMgr.h"
 
-
-struct TouchInfo
-{
-	ScaleMatrix	scaleX;
-	ScaleMatrix	scaleY;
-	ushort	minZtouch;
-	byte	updateRate;
-	byte	sampleDiscard;
-	byte	averageShift;
-	byte	reserved[3];	// round up to multiple of 32 bits
-};
 
 //****************************************************************************
 // Default EEPROM values
@@ -32,12 +21,17 @@ static constexpr int TouchInitialDiscard = 4;
 static constexpr int TouchAverageShift = 3;
 
 
-class Xtp2046 : public ResTouch, public DECLARE_SPI(SERCOM1, RtpCs_PIN)
+class Xtp2046 : public TouchMgr, DECLARE_SPI(SERCOM1, RtpCs_PIN)
 {
-public:
-	static constexpr int BaudRate = 1000000;
+protected:
+	static constexpr int BaudRate = 1'000'000;
+	static constexpr int Resolution = 4096;
+	static constexpr double Reference = 3.3;
+	// Temp reference diode is 0.6V at 25C. Allow 0.4V - 0.8V.
+	static constexpr int MinTempReading = 0.4 * Resolution / Reference;
+	static constexpr int MaxTempReading = 0.8 * Resolution / Reference;
 
-public:
+protected:
 	// Types
 	enum ControlByte
 	{
@@ -47,6 +41,9 @@ public:
 		ADDR_Y_Val = 1,
 		ADDR_Z1_Val = 3,
 		ADDR_Z2_Val = 4,
+		ADDR_Temp0_Val = 0,
+		ADDR_Temp1_Val = 7,
+		
 
 		ADDR_pos = 4,	// bit position in control byte
 
@@ -54,6 +51,8 @@ public:
 		ADDR_Y =	(ADDR_Y_Val << ADDR_pos),
 		ADDR_Z1 =	(ADDR_Z1_Val << ADDR_pos),
 		ADDR_Z2 =	(ADDR_Z2_Val << ADDR_pos),
+		ADDR_Temp0 = (ADDR_Temp0_Val << ADDR_pos),
+		ADDR_Temp1 = (ADDR_Temp1_Val << ADDR_pos),
 
 		// Mode: 12-bit or 8-bit
 		MODE_12Bit_Val = 0,
@@ -94,39 +93,47 @@ public:
 		RTP_ReadY = RTP_Start | MODE_12Bit | REF_Dif | PWR_Save | ADDR_Y,
 		RTP_ReadZ1 = RTP_Start | MODE_12Bit | REF_Dif | PWR_Save | ADDR_Z1,
 		RTP_ReadZ2 = RTP_Start | MODE_12Bit | REF_Dif | PWR_Save | ADDR_Z2,
+		RTP_ReadTemp0 = RTP_Start | MODE_12Bit | REF_Sngl | PWR_Save | ADDR_Temp0,
+		RTP_ReadTemp1 = RTP_Start | MODE_12Bit | REF_Sngl | PWR_Save | ADDR_Temp1,
 	};
 
 
 public:
-	void Init(SpiInPad padMiso, SpiOutPad padMosi, TouchInfo *pInfo, uint width, uint height)
+	bool Init(SpiInPad padMiso, SpiOutPad padMosi)
 	{
 		SpiInit(padMiso, padMosi, SPIMODE_0);
 		SetBaudRateConst(BaudRate);
 
-		// Set scaling values
-		SetMax(width, height);
-		SetMatrix(pInfo->scaleX, pInfo->scaleY);
-		m_minZtouch = pInfo->minZtouch;
-		m_avgShift = pInfo->averageShift;
-		m_discardCnt = pInfo->sampleDiscard;
+		m_minZtouch = TouchDefaultMinZ;
+		m_avgShift = TouchAverageShift;
+		m_discardCnt = TouchInitialDiscard;
 		m_sampleCnt = (1 << m_avgShift) + m_discardCnt;
-		m_scanTicks = Timer::TicksFromFreq(pInfo->updateRate * m_sampleCnt);
-
-		m_tmr.Start();
+		m_scanTicks = Timer::TicksFromFreq(TouchUpdateRate * m_sampleCnt);
+		
+		Enable();
+		
+		// Measure temperature to see if chip is present
+		int temp = ReadValue(RTP_ReadTemp0);
+		if (temp >= MinTempReading && temp <= MaxTempReading)
+		{
+			m_tmr.Start();
+			return true;
+		}
+		
+		Disable();
+		return false;
 	}
 
-	ushort GetRawX()	{ return m_rawX; }
-	ushort GetRawY()	{ return m_rawY; }
-	ushort GetRawZ()	{ return m_rawZ; }
-
-	bool Process() NO_INLINE_ATTR
+	bool Process()
 	{
+		ushort	rawZ;
+		
 		if (!m_tmr.CheckInterval_ticks(m_scanTicks))
 			return false;
 
 		//if (GetRtpPenIrq() == 0)
-		m_rawZ = ReadValue(RTP_ReadZ1);
-		if (m_rawZ >= m_minZtouch)
+		rawZ = ReadValue(RTP_ReadZ1);
+		if (rawZ >= m_minZtouch)
 		{
 			// Touching
 			if (!m_fPrevTouch)
@@ -146,10 +153,7 @@ public:
 			if (m_cAvg < m_sampleCnt)
 				return false;
 
-			m_rawX = m_sumX >> m_avgShift;
-			m_rawY = m_sumY >> m_avgShift;
-
-			ProcessRaw(m_rawX, m_rawY);
+			ProcessRaw(m_sumX >> m_avgShift, m_sumY >> m_avgShift);
 			IsTouched(true);
 			m_sumX = 0;
 			m_sumY = 0;
@@ -171,7 +175,11 @@ public:
 
 		return true;
 	}
-
+	
+	bool CheckLeaveStandby()
+	{
+		return GetTouchIrq() == 0;
+	}
 
 protected:
 	static uint ReadValue(byte bControl) NO_INLINE_ATTR
@@ -190,12 +198,8 @@ protected:
 	}
 
 protected:
-	Timer	m_tmr;
 	ushort	m_sumX;
 	ushort	m_sumY;
-	ushort	m_rawX;
-	ushort	m_rawY;
-	ushort	m_rawZ;
 
 	ushort	m_minZtouch;
 	ushort	m_scanTicks;
@@ -205,5 +209,3 @@ protected:
 	byte	m_cAvg;
 	bool	m_fPrevTouch;
 };
-
-extern Xtp2046	Touch;

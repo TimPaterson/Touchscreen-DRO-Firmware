@@ -17,7 +17,7 @@
 #include "FileOperations.h"
 #include "VersionUpdate.h"
 #include "PowerDown.h"
-
+#include "GT9271.h"
 
 //*********************************************************************
 // References
@@ -74,7 +74,10 @@ Console_t	Console;
 FILE		Console_FILE;
 FDEV_STANDARD_STREAMS(&Console_FILE, NULL);
 
-Xtp2046		Touch;
+Xtp2046		ResTouch;
+Gt9271		CapTouch;
+TouchMgr	NoTouch;
+TouchMgr*	pTouch = &NoTouch;
 UsbDro		UsbPort;
 FileBrowser	Files;
 ToolLib		Tools;
@@ -223,8 +226,40 @@ int main(void)
 		Lcd.SetMainImage(&MainScreen);
 		Lcd.DisplayOn();
 
-		Touch.Init(SPIMISOPAD_Pad3, SPIOUTPAD_Pad0_MOSI_Pad1_SCK, &Eeprom.Data.TouchInit, Lcd.ScreenWidth, Lcd.ScreenHeight);
-		Touch.Enable();
+		// Initialize touch panel
+		TouchMgr::SetSize(Lcd.ScreenWidth, Lcd.ScreenHeight);
+		TouchMgr::SetMatrix(&Eeprom.Data.TouchInit);
+		
+		// Search for touch panel
+		for ( int i = 0; ; i++)
+		{
+			if (CapTouch.Init())
+			{
+				pTouch = &CapTouch;
+				DEBUG_PRINT("Found CTP\n");
+				break;
+			}
+			
+			if (ResTouch.Init(SPIMISOPAD_Pad3, SPIOUTPAD_Pad0_MOSI_Pad1_SCK))
+			{
+				pTouch = &ResTouch;
+				DEBUG_PRINT("Found RTP\n");
+				break;
+			}
+			
+			DEBUG_PRINT("No touch panel found\n");
+			
+			if (i == 3)
+			{
+				// No touch panel, put up error message box. Mouse can still be used.
+				Lcd.EnablePip1(&NoTouchPanel, NoTouchLeft, NoTouchTop, true);
+				// Leave pTouch set to empty touch panel
+				break;
+			}
+			
+			// The GT9271 needs some time before trying again
+			Timer::Delay_ms(500);
+		}
 
 		Actions::Init();
 
@@ -353,18 +388,18 @@ int main(void)
 		FileOp.Process();
 
 		// Process screen touch
-		if (lcdPresent && Touch.Process())
+		if (lcdPresent && pTouch->Process())
 		{
 			uint	flags;
 
 			// Touch sensor has an update
-			flags = Touch.GetTouch();
+			flags = pTouch->GetTouch();
 			if (flags != TOUCH_None)
 			{
 				int	x, y;
 
-				x = Touch.GetX();
-				y = Touch.GetY();
+				x = pTouch->GetX();
+				y = pTouch->GetY();
 
 				Actions::TakeAction(x, y, flags);
 			}
