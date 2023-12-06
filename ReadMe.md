@@ -1,4 +1,13 @@
 # Firmware for Smart Touchscreen DRO Project
+### Latest Updates - Release v.5
+- The LT7683 graphics chip is now supported. 
+[BuyDisplay.com](https://www.buydisplay.com/serial-spi-i2c-10-1-inch-tft-lcd-module-dislay-w-ra8876-optl-touch-panel)
+is using this chip in place of the RA8876.
+- The capacitive touch panel (CTP) is now supported (as well as the original resistive touch panel). The 
+CTP costs only slightly more and gives more precise results, unaffected by touch pressure. Like a phone
+touchscreen, it will *not* respond to an inanimate object (e.g., a pen).
+
+### Introduction
 This is the repository for the code for the [Smart Touchscreen DRO](https://github.com/TimPaterson/TouchscreenDigitalReadout).
 Go there for description, photos, etc.
 
@@ -7,7 +16,8 @@ This repository contains two projects:
 - DroUpdateBuilder, a Windows console app that packages DRO code, graphics, and fonts into a single file for updates.
  This is a Visual Studio project. The `bin` folder includes a ready-to-run `DroUpdateBuilder.exe`.
 
- To build the DRO code, you must also have the [Microchip-SAM-Library](https://github.com/TimPaterson/Microchip-SAM-Library)
+ The release includes ready-to-go binary files. If you wish to build the DRO code yourself, you must also have the 
+ [Microchip-SAM-Library](https://github.com/TimPaterson/Microchip-SAM-Library)
  repository in a sibling directory.
 
  ### Additional Tools
