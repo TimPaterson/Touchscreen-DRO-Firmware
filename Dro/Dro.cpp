@@ -339,6 +339,7 @@ int main(void)
 		if (i != HOSTACT_None)
 		{
 			int	X, Y;
+			uint flags;
 			ButtonState buttons;
 
 			switch (i)
@@ -350,7 +351,16 @@ int main(void)
 
 				buttons = Mouse.GetButtons();
 				if (buttons.btnStart & BUTTON_Left)
-					Actions::TakeAction(X, Y);
+					flags = TOUCH_Start | TOUCH_Touched;
+				else if (buttons.btnDown & BUTTON_Left)
+					flags = TOUCH_Touched;
+				else if (buttons.btnEnd & BUTTON_Left)
+					flags = TOUCH_End;
+				else
+					flags = TOUCH_None;
+				
+				if (flags != TOUCH_None)
+					Actions::TakeAction(X, Y, flags);
 				break;
 
 			case HOSTACT_FlashReady:
