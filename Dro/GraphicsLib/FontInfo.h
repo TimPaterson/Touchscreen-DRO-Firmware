@@ -20,5 +20,5 @@ typedef struct
 	byte	FirstChar;
 	byte	LastChar;
 	byte	CharStride;
-	byte	arWidths[];
+	const byte arWidths[];
 } FontInfo;

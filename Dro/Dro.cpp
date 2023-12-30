@@ -229,7 +229,7 @@ int main(void)
 		// Initialize touch panel
 		TouchMgr::SetSize(Lcd.ScreenWidth, Lcd.ScreenHeight);
 		TouchMgr::SetMatrix(&Eeprom.Data.TouchInit);
-		
+
 		// Search for touch panel
 		for ( int i = 0; ; i++)
 		{
@@ -239,16 +239,16 @@ int main(void)
 				DEBUG_PRINT("Found CTP\n");
 				break;
 			}
-			
+
 			if (ResTouch.Init(SPIMISOPAD_Pad3, SPIOUTPAD_Pad0_MOSI_Pad1_SCK))
 			{
 				pTouch = &ResTouch;
 				DEBUG_PRINT("Found RTP\n");
 				break;
 			}
-			
+
 			DEBUG_PRINT("No touch panel found\n");
-			
+
 			if (i == 3)
 			{
 				// No touch panel, put up error message box. Mouse can still be used.
@@ -256,7 +256,7 @@ int main(void)
 				// Leave pTouch set to empty touch panel
 				break;
 			}
-			
+
 			// The GT9271 needs some time before trying again
 			Timer::Delay_ms(500);
 		}
@@ -291,7 +291,7 @@ int main(void)
 			PowerDown::ResumeStandby();
 
 		wdt_reset();
-		
+
 		// Check status of SD card
 		if (!GetSdCd() == fSdOut && !FileOp.IsBusy())
 		{
@@ -358,7 +358,7 @@ int main(void)
 					flags = TOUCH_End;
 				else
 					flags = TOUCH_None;
-				
+
 				if (flags != TOUCH_None)
 					Actions::TakeAction(X, Y, flags);
 				break;
@@ -389,7 +389,7 @@ int main(void)
 				}
 
 				// Turn mouse off
-				Lcd.DisableGraphicsCursor();				
+				Lcd.DisableGraphicsCursor();
 				break;
 			}
 		}
@@ -439,7 +439,7 @@ FileErrChk:
 				printf("Loading image...");
 				err = FileOp.WriteFileToFlash("Screen.bin", FlashScreenStart);
 				goto FileErrChk;
-				
+
 			case 'p':
 				if (lcdPresent)
 				{
@@ -456,7 +456,7 @@ FileErrChk:
 						isTestPattern = true;
 					}
 				}
-				break;				
+				break;
 
 			case 't':
 				if (lcdPresent)

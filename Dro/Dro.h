@@ -16,8 +16,8 @@
 #include "FatFileDef.h"
 
 
-#define PROGRAM_VERSION		5
-#define GRAPHICS_VERSION	3
+#define PROGRAM_VERSION		6
+#define GRAPHICS_VERSION	4
 #define FONT_VERSION		1
 
 // Debugging options
@@ -27,7 +27,7 @@
 
 // A firmware update requires storing new firmware locally as it's
 // read off the flash drive. Originally, it was stored in video
-// RAM, which works fine on the RA8876. However, for unknown 
+// RAM, which works fine on the RA8876. However, for unknown
 // reasons, the RAM gets corrupted using the LT7683. So now the
 // firmware is programmed into the serial flash instead. This
 // constant switches between these choices to preserve the old code.
@@ -163,7 +163,7 @@ enum PortApins
 	UsbDp_PIN =			(1 << UsbDp_BIT),
 	LcdWait_PIN =		(1 << LcdWait_BIT),
 	LcdIrq_PIN =		(1 << LcdIrq_BIT),
-	
+
 	TP1_PIN =			(1 << TP1_BIT),
 	TP2_PIN =			(1 << TP2_BIT),
 };
@@ -209,7 +209,7 @@ struct PortIoGroup
 union PortAreg
 {
 	ulong	ul;
-	struct 
+	struct
 	{
 		byte	b0;
 		byte	Sd;
@@ -264,7 +264,7 @@ union PortBreg
 			{
 				byte	CtrlLo;
 				byte	CtrlHi;
-			};			
+			};
 		};
 	};
 };
@@ -392,7 +392,7 @@ enum ExtIrq
 };
 
 // Position sensors
-static constexpr uint PosSensorIrqMask = EI_QposA | EI_QposB | 
+static constexpr uint PosSensorIrqMask = EI_QposA | EI_QposB |
 	EI_YposA | EI_YposB | EI_ZposA | EI_ZposB | EI_XposA | EI_XposB;
 
 //*********************************************************************
@@ -404,15 +404,15 @@ class ScreenMgr;	// Entirely static
 extern ScreenMgr Lcd;
 
 //*********************************************************************
-// Timer on TC3. 
+// Timer on TC3.
 //
-// With prescale of 1024, resolution is 1 / (48MHz / 1024) = 21.3us, 
+// With prescale of 1024, resolution is 1 / (48MHz / 1024) = 21.3us,
 // and max delay is 1.4 seconds.
 
 typedef DECLARE_TIMER(TC3, 1024) Timer;
 
 //*********************************************************************
-// LCD backlight LED PWM on TCC1 
+// LCD backlight LED PWM on TCC1
 
 static constexpr int LcdBacklightPwmFreq = 200;
 static constexpr int LcdBacklightPwmMax = F_CPU / LcdBacklightPwmFreq -1;

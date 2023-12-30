@@ -15,8 +15,6 @@ public:
 	static constexpr int MaxOrigins = 2;
 
 protected:
-	static constexpr double InchRounding = 5000.0;			// 1/5000 inch
-	static constexpr double MmRounding = 100.0;				// 1/100 mm
 	static constexpr double MaxCompensationPpm = 1000.0;	// max adjust of 0.1%
 
 	//*********************************************************************
@@ -45,6 +43,9 @@ public:
 	void SetOrigin(uint i, long pos)	{ m_arOrigins[i] = pos; }
 	void AdjustOrigin(uint i, long pos)	{ m_arOrigins[i] += pos; }
 	void AdjustOrigin(long pos)			{ AdjustOrigin(Eeprom.Data.OriginNum, pos); }
+		
+public:
+	static int GetDecimals()			{ return IsMetric() ? 3 : 4; }
 
 public:
 	double GetPosition()
@@ -53,9 +54,9 @@ public:
 
 		pos = m_arOrigins[Eeprom.Data.OriginNum] + m_posCur;
 		if (IsMetric())
-			return nearbyint(pos * m_scaleMm + m_offsetMm) / MmRounding;
+			return nearbyint(pos * m_scaleMm + m_offsetMm) / m_mmRounding;
 
-		return nearbyint(pos * m_scaleInch + m_offsetInch) / InchRounding;
+		return nearbyint(pos * m_scaleInch + m_offsetInch) / m_inchRounding;
 	}
 
 	double GetDistance()
@@ -72,9 +73,9 @@ public:
 	double GetDistance(int delta)
 	{
 		if (IsMetric())
-			return nearbyint(delta * m_scaleMm) / MmRounding;
+			return nearbyint(delta * m_scaleMm) / m_mmRounding;
 
-		return nearbyint(delta * m_scaleInch) / InchRounding;
+		return nearbyint(delta * m_scaleInch) / m_inchRounding;
 	}
 
 	long SetPosition(double pos)
@@ -92,13 +93,13 @@ public:
 		// Offset is in current units
 		if (IsMetric())
 		{
-			m_offsetMm = offset * MmRounding;
-			m_offsetInch = offset / MmPerInch * InchRounding;
+			m_offsetMm = offset * m_mmRounding;
+			m_offsetInch = offset / MmPerInch * m_inchRounding;
 		}
 		else
 		{
-			m_offsetInch = offset * InchRounding;
-			m_offsetMm = offset * MmPerInch * MmRounding;
+			m_offsetInch = offset * m_inchRounding;
+			m_offsetMm = offset * MmPerInch * m_mmRounding;
 		}
 	}
 
@@ -126,10 +127,33 @@ public:
 
 	void SensorInfoUpdate()
 	{
-		m_scaleMm = m_pInfo->Correction * m_pInfo->Resolution * MmRounding / 1000.0;
+		// Set up display rounding according to sensor resolution
+		// For 1, 2, 5, 10 um
+		if (m_pInfo->Resolution > 5)
+		{
+			m_inchRounding = 2000.0;	// 1/2000 in = 0.0005
+			m_mmRounding = 100.0;		// 1/100 mm = 0.01
+		}
+		else if (m_pInfo->Resolution > 2)
+		{
+			m_inchRounding = 5000.0;	// 1/5000 in = 0.0002
+			m_mmRounding = 200.0;		// 1/200 mm = 0.005
+		}
+		else if (m_pInfo->Resolution > 1)
+		{
+			m_inchRounding = 10000.0;	// 1/10000 in = 0.0001
+			m_mmRounding = 500.0;		// 1/500 mm = 0.002
+		}
+		else
+		{
+			m_inchRounding = 20000.0;	// 1/20000 in = 0.00005
+			m_mmRounding = 1000.0;		// 1/500 mm = 0.001
+		}
+
+		m_scaleMm = m_pInfo->Correction * m_pInfo->Resolution * m_mmRounding / 1000.0;
 		if (m_pInfo->Direction)
 			m_scaleMm = -m_scaleMm;
-		m_scaleInch = m_scaleMm * InchRounding / MmRounding / MmPerInch;
+		m_scaleInch = m_scaleMm * m_inchRounding / m_mmRounding / MmPerInch;
 	}
 
 public:
@@ -147,12 +171,12 @@ protected:
 		// Round to display value first
 		if (IsMetric())
 		{
-			pos = nearbyint(pos * MmRounding - m_offsetMm);
+			pos = nearbyint(pos * m_mmRounding - m_offsetMm);
 			pos /= m_scaleMm;
 		}
 		else
 		{
-			pos = nearbyint(pos * InchRounding - m_offsetInch);
+			pos = nearbyint(pos * m_inchRounding - m_offsetInch);
 			pos /= m_scaleInch;
 		}
 
@@ -199,5 +223,7 @@ private:
 	double		m_scaleInch;
 	double		m_offsetMm;
 	double		m_offsetInch;
+	double		m_inchRounding;
+	double		m_mmRounding;
 	long		m_arOrigins[MaxOrigins];
 };

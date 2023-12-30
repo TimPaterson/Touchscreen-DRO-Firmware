@@ -54,7 +54,7 @@ public:
 		}
 
 		s_Display.SetTextColor(m_textColor);
-		s_Display.PrintNum(Eeprom.Data.fIsMetric ? "%8.2f" : "%8.4f", m_pAxisPos->GetPosition());
+		s_Display.PrintSigned(m_pAxisPos->GetPosition(), 9,  m_pAxisPos->GetDecimals());
 	}
 
 	void SetTextColor(ulong color)
@@ -124,8 +124,9 @@ protected:
 		cur = undo.cur;
 		for (uint i = 0; i < UndoDisplays; i++)
 		{
-			s_UndoDisplay.PrintDbl(Eeprom.Data.fIsMetric ? "%8.2f" : "%8.4f", 
-				m_pAxisPos->GetDistance(undo.value[cur]), m_pUndoArea[i]);
+			s_UndoDisplay.PrintSigned(m_pAxisPos->GetDistance(undo.value[cur]), 
+				8, m_pAxisPos->GetDecimals() - 1, m_pUndoArea[i]);
+				
 			--cur %= UndoLevels;
 		}
 	}

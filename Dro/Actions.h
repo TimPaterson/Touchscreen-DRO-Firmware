@@ -549,13 +549,7 @@ public:
 public:
 	static double GetCalcValue()
 	{
-		double	val;
-
-		val = ToValueStateClear();
-		// Negative values never allowed
-		if (val < 0)
-			val = -val;
-		return val;
+		return fabs(ToValueStateClear());	// negative values not allowed
 	}
 
 	static void SetCalcValue(double val)
@@ -612,7 +606,7 @@ protected:
 		return val;
 	}
 	
-	static double ToValueStateClear()
+	static double ToValueStateClear() NO_INLINE_ATTR
 	{
 		double val = ToValueState();
 		ClearEntry();

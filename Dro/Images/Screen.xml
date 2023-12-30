@@ -50,6 +50,16 @@
   <Color Name="UndoBackColor" Color="CalcBackColor" ColorDepth="Color16bpp"/>
 
   <!-- Components -->
+  <!-- This one not used, just gets character widths -->
+  <Component Name="CharWidths">
+    <TextBlock Name="DigitDisplayMinus" Font="DigitDisplay">-</TextBlock>
+    <TextBlock Name="DigitDisplayDot" Font="DigitDisplay">.</TextBlock>
+    <Set>
+      DigitDisplay_WidthMinus = DigitDisplayMinus.Width;
+      DigitDisplay_WidthDot = DigitDisplayDot.Width;
+    </Set>
+  </Component>
+
   <Component Name="Key">
     <Rectangle Name="Button" Height="BtnHeight" Width="BtnWidth"
       RadiusX="8" RadiusY="8" StrokeThickness="0" Fill="White">
@@ -84,13 +94,13 @@
   <Set>
     <!-- Axis displays -->
     DispHt = DigitDisplay_Height;
-    DispWd = 410;
+    DispWd = 7 * DigitDisplay_WidthZero + DigitDisplay_WidthMinus + DigitDisplay_WidthDot;
     DigHt = 96;
     LabHt = 72;
     Vspace = 25;
     LabTop = (DispHt - DigHt) / 2;
     AxisBtnWidth = 85;
-    AxisBtnGap = 25;
+    AxisBtnGap = 20;
     AxisBtnLeft = DispWd + AxisBtnGap;
     AxisBtnRight = AxisBtnLeft + AxisBtnWidth;
 

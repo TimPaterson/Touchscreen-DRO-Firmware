@@ -124,6 +124,13 @@ public:
 			WriteCharActive(ch);
 		}
 	}
+	
+	void WriteBlankSpace(ushort width)
+	{
+		Area area = {m_curPosX, m_pArea->Ypos, width, m_pArea->Height};
+		m_curPosX += width;
+		FillRect(m_pCanvas, &area, m_backColor);
+	}
 
 	int printf(const char *fmt, ...) __attribute__ ((format (printf, 2, 3)))
 	{
@@ -330,11 +337,15 @@ public:
 		MoveXposition(GetStdCharWidth('0') - GetStdCharWidth('-'));
 	}
 
-	int PrintNum(const char *fmt, double val)
+	int PrintSigned(double val, int width, int decimals)
 	{
-		if (val < 0)
-			ShiftMinus();
-		return printf(fmt, val);
+		if (val >= 0)
+		{
+			WriteBlankSpace(GetStdCharWidth('-'));
+			width--;
+		}
+			
+		return printf("%*.*f", width, decimals, val);
 	}
 
 	void WriteString(const char *psz)
@@ -357,6 +368,21 @@ public:
 	}
 
 public:
+	int PrintSigned(double val, int width, int decimals)
+	{
+		ClearArea();
+		if (val == 0)
+			return 0;
+			
+		return NumberLine::PrintSigned(val, width, decimals);
+	}
+	
+	int PrintSigned(double val, int width, int decimals, const Area &area)
+	{
+		SetArea(area);
+		return PrintSigned(val, width, decimals);
+	}
+	
 	int PrintDbl(const char *fmt, double val)
 	{
 		ClearArea();
