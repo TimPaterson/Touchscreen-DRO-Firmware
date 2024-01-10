@@ -62,13 +62,29 @@ enum ActionHotspots
 	Key_divide = CH_Divide,
 };
 
-// Index into array of PosSensor
+// Index into array of AxisPos
 enum AxisIndex
 {
 	Xaxis,
 	Yaxis,
 	Zaxis,
-	Qsensor
+	Qaxis,
+};
+
+// These are the values that LatheAssignmentList can have
+enum LatheAssignments
+{
+	LATHE_None,
+	LATHE_X,
+	LATHE_Z,
+	LATHE_Zprime,
+	LATHE_T,
+};
+
+enum MachineIndex
+{
+	Mill,
+	Lathe,
 };
 
 enum ToolSides
@@ -142,6 +158,13 @@ enum ToolAreas
 	UpdateExecute,
 	UpdateCancel,
 	VersionMatch,
+};
+
+enum LatheToolAreas
+{
+	LatheToolNumber,
+	ToolXoffset,
+	ToolZoffset,
 };
 
 enum TimeSetSpots
@@ -357,5 +380,6 @@ enum Colors
 // Define values
 
 #define DEFINE_VALUE(name, val)	static const int name = val;
+#define DEFINE_STR_VALUE(name, val)	static const char name[] = #val;
 
 #include "Images/Screen.h"

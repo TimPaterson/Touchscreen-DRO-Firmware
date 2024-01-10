@@ -68,7 +68,7 @@ extern "C"
 //*********************************************************************
 // Component data
 
-VersionInfo_t VersionInfo VERSION_INFO = { DroFirmwareId, PROGRAM_VERSION, GRAPHICS_VERSION, FONT_VERSION };
+VersionInfo_t VersionInfo VERSION_INFO_ATTR = { DroFirmwareId, PROGRAM_VERSION, GRAPHICS_VERSION, FONT_VERSION };
 
 Console_t	Console;
 FILE		Console_FILE;
@@ -94,14 +94,17 @@ static const int AxisUpdateRate = 20;	// updates per second
 static const int FeedUpdateRate = 8;	// updates per second
 static const int MinBrightness = LcdBacklightPwmMax * 10 / 100;	// min = 10%
 
-PosSensor Qpos(&Eeprom.Data.QaxisInfo);
+AxisPos Qpos(&Eeprom.Data.QaxisInfo);
 AxisPos Xpos(&Eeprom.Data.XaxisInfo);
 AxisPos Ypos(&Eeprom.Data.YaxisInfo);
 AxisPos Zpos(&Eeprom.Data.ZaxisInfo, &Qpos);
 
-AxisDisplay Xdisplay(&Xpos, MainScreen_Areas.Xdisplay, MainScreen_Areas.UndoX1);
-AxisDisplay Ydisplay(&Ypos, MainScreen_Areas.Ydisplay, MainScreen_Areas.UndoY1);
-AxisDisplay Zdisplay(&Zpos, MainScreen_Areas.Zdisplay, MainScreen_Areas.UndoZ1);
+AxisDisplay Xdisplay(MainScreen_Areas.Xdisplay, MainScreen_Areas.UndoX1, 
+	MainScreen_Areas.Xbutton, MainScreen_Areas.UndoLabelX);
+AxisDisplay Ydisplay(MainScreen_Areas.Ydisplay, MainScreen_Areas.UndoY1, 
+	MainScreen_Areas.Ybutton, MainScreen_Areas.UndoLabelY);
+AxisDisplay Zdisplay(MainScreen_Areas.Zdisplay, MainScreen_Areas.UndoZ1, 
+	MainScreen_Areas.Zbutton, MainScreen_Areas.UndoLabelZ);
 
 //********************************************************************
 // EEPROM data
@@ -178,17 +181,30 @@ int main(void)
 	Eeprom.Init();
 	RtcTime::Init();
 
-	timeCur.ReadClock();
-	timeSave = PowerDown::Restore();
-	if (!timeCur.IsSet())
-		timeSave.SetClock();
-
 	Console.Init(RXPAD_Pad1, TXPAD_Pad2);
 	Console.SetBaudRate(CONSOLE_BAUD_RATE);
 	Console.StreamInit(&Console_FILE);
 	Console.Enable();
 
 	printf("\nDRO version " STRINGIFY(PROGRAM_VERSION) "\n");
+	
+	if (Eeprom.Data.FlashVersion != FLASH_VERSION)
+	{
+		// Tool library and/or power down save flash format changed.
+		// Erase them.
+		DEBUG_PRINT("Erasing libraries\n");
+		
+		PowerDown::EraseAllSaved();
+		
+		Eeprom.Data.FlashVersion = FLASH_VERSION;
+		Eeprom.StartSave();
+	}
+
+	timeCur.ReadClock();
+	timeSave = PowerDown::Restore();
+	if (timeSave > timeCur)
+		timeSave.SetClock();
+		
 	if (PM->RCAUSE.reg & PM_RCAUSE_WDT)
 	{
 		DEBUG_PRINT("WDT Reset\n");

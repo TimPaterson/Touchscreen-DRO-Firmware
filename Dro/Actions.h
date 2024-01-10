@@ -40,10 +40,10 @@ class Actions
 	// Each axis has an array of settings. This indexes into the array.
 	enum SettingsAreas
 	{
-		AREA_Disable,
 		AREA_Resolution,
 		AREA_Invert,
 		AREA_Correction,
+		AREA_Count,
 	};
 
 	//*********************************************************************
@@ -84,8 +84,10 @@ public:
 public:
 	static void Init()
 	{
+		ApplySettings();
 		ShowAbsInc();
 		ShowInchMetric();
+		ShowDiameterRadius();
 		Tools.Init();
 		Files.Init();
 	}
@@ -117,7 +119,7 @@ public:
 		uint		group;
 		uint		spot;
 		double		val;
-		PosSensor	*pSensor;
+		AxisPos		*pAxis;
 		AxisDisplay	*pDisplay;
 		char		*pStr;
 		bool		*pToggle;
@@ -313,7 +315,9 @@ public:
 		// to the axis.
 
 		case HOTSPOT_GROUP_Axis:
-			pDisplay = s_arDisplay[spot];
+			pDisplay = AxisDisplay::Axes[spot];
+			if (!pDisplay->IsVisible())
+				return;
 
 			if (s_state == AS_Empty)
 				ToValueState(pDisplay->GetPosition());
@@ -326,7 +330,7 @@ public:
 		//
 
 		case HOTSPOT_GROUP_AxisButton:
-			s_arDisplay[spot]->SetPosition(0);
+			AxisDisplay::Axes[spot]->SetPosition(0);
 			break;
 
 		//*****************************************************************
@@ -334,7 +338,7 @@ public:
 		//
 
 		case HOTSPOT_GROUP_Undo:
-			s_arDisplay[spot]->Undo();
+			AxisDisplay::Axes[spot]->Undo();
 			break;
 
 		//*****************************************************************
@@ -370,17 +374,17 @@ public:
 		//
 
 		case HOTSPOT_GROUP_Disable:
-			pSensor = s_arSensor[spot];
-			pSensor->SetDisable(pSensor->IsDisabled() ^ true);
+			pAxis = AxisDisplay::AxisPositions[spot];
+			pAxis->SetDisable(pAxis->IsDisabled() ^ true);
 			ShowSettingsInfo();
 			return;
 
 		case HOTSPOT_GROUP_Resolution:
-			pSensor = s_arSensor[spot];
+			pAxis = AxisDisplay::AxisPositions[spot];
 			if (s_state == AS_Empty)
 			{
 				// Just reading the value
-				val = pSensor->GetResolution();
+				val = pAxis->GetResolution();
 				ToValueState(val);
 				break;
 			}
@@ -388,20 +392,17 @@ public:
 			{
 				// Setting the value
 				val = ToValueStateClear();
-				if (val <= 10 && val >= 1)
-				{
-					pSensor->SetResolution((uint)val);
-					ShowSettingsInfo();
-				}
+				pAxis->SetResolution(val);
+				ShowSettingsInfo();
 				return;
 			}
 
 		case HOTSPOT_GROUP_Correction:
-			pSensor = s_arSensor[spot];
+			pAxis = AxisDisplay::AxisPositions[spot];
 			if (s_state == AS_Empty)
 			{
 				// Just reading the value
-				val = pSensor->GetCorrectionPpm();
+				val = pAxis->GetCorrectionPpm();
 				ToValueState(val);
 				break;
 			}
@@ -409,16 +410,39 @@ public:
 			{
 				// Setting the value
 				val = ToValueStateClear();
-				if (!pSensor->SetCorrectionPpm(val))
+				if (!pAxis->SetCorrectionPpm(val))
 					;	// UNDONE: Display error
 				ShowSettingsInfo();
 				return;
 			}
 
 		case HOTSPOT_GROUP_Invert:
-			pSensor = s_arSensor[spot];
-			pSensor->SetDirection(pSensor->GetDirection() ^ true);
+			pAxis = AxisDisplay::AxisPositions[spot];
+			pAxis->SetDirection(pAxis->GetDirection() ^ true);
 			ShowSettingsInfo();
+			return;
+			
+		case HOTSPOT_GROUP_Assign:
+			s_assignAxis = spot;
+			Lcd.EnablePip1(&LatheAssignList, LatheListLeft, LatheListTop + spot * LatheListHeight, true);
+			return;			
+
+		case HOTSPOT_GROUP_AssignItem:
+			Eeprom.Data.LatheAssign[s_assignAxis] = spot;
+			// If this axis has been assigned to another sensor, 
+			// unassign that one.
+			for (int i = 0; i < AxisPosCount; i++)
+			{
+				if (i != s_assignAxis && Eeprom.Data.LatheAssign[i] == spot)
+					Eeprom.Data.LatheAssign[i] = LATHE_None;
+			}
+			Lcd.DisablePip1();
+			ShowSettingsInfo();
+			return;			
+			
+		case HOTSPOT_GROUP_Machine:
+			Eeprom.Data.fIsLathe = spot;
+			Lcd.EnablePip2(spot == Mill ? &SettingsScreen : &LatheSettingsScreen, 0, 0);
 			return;
 
 		case HOTSPOT_GROUP_SettingToggle:
@@ -467,20 +491,29 @@ public:
 				UpdateEeprom();
 				break;
 
+			case DiameterRadius:
+				Eeprom.Data.fLatheRadius ^= true;
+				ShowDiameterRadius();
+				UpdateEeprom();
+				break;
+
 			case Standby:
 				PowerDown::EnterStandby();
 				break;
 				
 			case Settings:
-				if (!Lcd.GetPip2()->IsEnabled())
+				if (s_isSettingsShown)
 				{
-					Lcd.EnablePip2(&SettingsScreen, 0, 0);
-					ShowSettingsInfo();
+					ApplySettings();
+					s_isSettingsShown = false;
+					Eeprom.StartSave();	// save all changes
 				}
 				else
 				{
-					Lcd.DisablePip2();
-					Eeprom.StartSave();	// save all changes
+					// open settings
+					s_isSettingsShown = true;
+					Lcd.EnablePip2(Eeprom.Data.fIsLathe ? &LatheSettingsScreen : &SettingsScreen, 0, 0);
+					ShowSettingsInfo();
 				}
 				break;
 
@@ -661,11 +694,25 @@ SetNull:
 	{
 		SelectImage(&MainScreen_Areas.InchMetric, &InchMetricBtn, Eeprom.Data.fIsMetric);
 		SelectImage(&MainScreen_Areas.SpeedDisplay, &SpeedDisplay, Eeprom.Data.fIsMetric);
+		Lcd.SelectImage(&LatheMain, &LatheMain_Areas.SpeedUnits, &SpeedUnits, Eeprom.Data.fIsMetric);
 	}
 
 	static void ShowAbsInc()
 	{
 		SelectImage(&MainScreen_Areas.AbsInc, &Coord, Eeprom.Data.OriginNum);
+	}
+
+	static void ShowDiameterRadius()
+	{
+		Lcd.SelectImage(&LatheMain, &LatheMain_Areas.DiameterRadius, &DiameterRadiusBtn, Eeprom.Data.fLatheRadius);
+	}
+	
+	static void ShowMillLathe()
+	{
+		if (Eeprom.Data.fIsLathe)
+			Lcd.EnablePip2(&LatheMain, 0, LatheMainTop);
+		else
+			Lcd.DisablePip2();
 	}
 
 	//*********************************************************************
@@ -677,26 +724,42 @@ protected:
 		Lcd.SelectImage(&SettingsScreen, &pAreaDst, &CheckBox, f);
 	}
 
-	static void ShowAxisInfo(SensorInfo axis, const Area arArea[])
+	static void ShowAxisInfo(Canvas* pCanvas, const Area *pArea)
 	{
 		double	val;
 
-		SettingsCheckBox(arArea[AREA_Disable], axis.Disable);
-		SettingsCheckBox(arArea[AREA_Invert], axis.Direction);
+		for (int i = 0; i < AxisPosCount; i++, pArea += AREA_Count)
+		{
+			Lcd.SelectImage(pCanvas, &pArea[AREA_Invert], &CheckBox, g_arAxisInfo[i].Direction);
 
-		s_SettingDisplay.PrintUint("%i", (uint)axis.Resolution, arArea[AREA_Resolution]);
+			s_SettingDisplay.SetCanvas(pCanvas);
+			val = AxisDisplay::AxisPositions[i]->GetResolution();
+			s_SettingDisplay.PrintDbl("%.1f", val, pArea[AREA_Resolution]);
 
-		val = (axis.Correction - 1.0) * 1E6;
-		s_SettingDisplay.PrintDbl("%+6.1f", val, arArea[AREA_Correction]);
+			val = (g_arAxisInfo[i].Correction - 1.0) * 1E6;
+			s_SettingDisplay.PrintDbl("%+6.1f", val, pArea[AREA_Correction]);
+		}
 	}
-
-	static void ShowSettingsInfo()
+	
+	static void ShowLatheSettings()
 	{
-		ShowAxisInfo(Eeprom.Data.XaxisInfo, &SettingsScreen_Areas.Xdisable);
-		ShowAxisInfo(Eeprom.Data.YaxisInfo, &SettingsScreen_Areas.Ydisable);
-		ShowAxisInfo(Eeprom.Data.ZaxisInfo, &SettingsScreen_Areas.Zdisable);
-		ShowAxisInfo(Eeprom.Data.QaxisInfo, &SettingsScreen_Areas.Qdisable);
+		const Area *pArea = &LatheSettingsScreen_Areas.Xassign;
+		
+		for (int i = 0; i < AxisPosCount; i++)
+			Lcd.SelectImage(&LatheSettingsScreen, &pArea[i], &LatheAssignments, Eeprom.Data.LatheAssign[i]);
 
+		ShowAxisInfo(&LatheSettingsScreen, &LatheSettingsScreen_Areas.Xresolution);
+	}
+	
+	static void ShowMillSettings()
+	{
+		const Area *pArea = &SettingsScreen_Areas.Xdisable;
+		
+		for (int i = 0; i < AxisPosCount; i++)
+			SettingsCheckBox(pArea[i], g_arAxisInfo[i].Disable);
+
+		ShowAxisInfo(&SettingsScreen, &SettingsScreen_Areas.Xresolution);
+		
 		SettingsCheckBox(SettingsScreen_Areas.HighlightXY, Eeprom.Data.fHighlightOffset);
 		SettingsCheckBox(SettingsScreen_Areas.OffsetZ, Eeprom.Data.fToolLenAffectsZ);
 		SettingsCheckBox(SettingsScreen_Areas.CncCoordinates, Eeprom.Data.fCncCoordinates);
@@ -704,18 +767,30 @@ protected:
 		s_SettingDisplay.PrintUint("%5i", Eeprom.Data.MaxRpm, SettingsScreen_Areas.MaxRpm);
 	}
 
-	//*********************************************************************
-	// const (flash) data
-	//*********************************************************************
-
-	inline static AxisDisplay*const s_arDisplay[3] = { &Xdisplay, &Ydisplay, &Zdisplay };
-
-	inline static PosSensor	*const s_arSensor[4] = { &Xpos, &Ypos, &Zpos, &Qpos };
+	static void ShowSettingsInfo()
+	{
+		ShowMillSettings();
+		ShowLatheSettings();
+	}
+	
+	static void ApplySettings()
+	{
+		AxisDisplay::AssignDisplays();
+		ShowMillLathe();
+	}
 
 	//*********************************************************************
 	// static (RAM) data
 	//*********************************************************************
 protected:
+	inline static char		s_arEntryBuf[InBufSize] = " ";
+	inline static char		s_arFormatBuf[InBufSize];
+	inline static byte		s_indBuf = 1;
+	inline static byte		s_op = OP_none;
+	inline static byte		s_state;
+	inline static bool		s_fHaveDp;
+	inline static byte		s_assignAxis;	// lathe axis being assigned
+	inline static bool		s_isSettingsShown;
 	inline static double	s_arg1;
 	inline static ListScroll	*s_pCapture;
 
@@ -732,10 +807,4 @@ protected:
 		FONT_CalcSmall, ScreenForeColor, CalcBackColor};
 	inline static NumberLineBlankZ s_SettingDisplay{SettingsScreen, SettingsScreen_Areas.MaxRpm, 
 		FONT_SettingsFont, SettingForeColor, SettingBackColor};
-	inline static char		s_arEntryBuf[InBufSize] = " ";
-	inline static char		s_arFormatBuf[InBufSize];
-	inline static byte		s_indBuf = 1;
-	inline static byte		s_op = OP_none;
-	inline static byte		s_state;
-	inline static bool		s_fHaveDp;
 };

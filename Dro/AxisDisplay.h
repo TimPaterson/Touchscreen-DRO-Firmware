@@ -21,82 +21,72 @@ extern AxisDisplay	Zdisplay;
 extern AxisPos		Xpos;
 extern AxisPos		Ypos;
 extern AxisPos		Zpos;
-extern PosSensor	Qpos;
+extern AxisPos		Qpos;
 
 
 class AxisDisplay
 {
-	static constexpr int UndoLevels = 8;	// Should be power of 2
-	static constexpr int UndoDisplays = 3;
-
-	struct UndoInfo
+	static constexpr int AxisDisplayCount = 3;
+	static constexpr int UndoDisplays = 3;	// per column
+	
+	// This is used as an index into a list of graphics labels
+	enum AxisLabels
 	{
-		ushort	count;
-		ushort	cur;
-		long	value[UndoLevels];
+		LABEL_X,
+		LABEL_Y,
+		LABEL_Z,
+		LABEL_Zprime,
+		LABEL_T,
 	};
-
+	
 	//*********************************************************************
 	// Public interface
-	//*********************************************************************3
+	//*********************************************************************
 public:
-	AxisDisplay(AxisPos *pAxisPos, const Area &axisArea, const Area &undoArea) : 
-		m_pAxisPos(pAxisPos), m_pAxisArea{&axisArea}, m_pUndoArea{&undoArea}
+	// Constructor
+	AxisDisplay(const Area &axisArea, const Area &undoArea, const Area &buttonArea, 
+			const Area &undoLabel) : 
+		m_pAxisArea{&axisArea}, m_pButtonArea{&buttonArea}, m_pUndoArea{&undoArea}, 
+			m_pUndoLabelArea{&undoLabel}
 		{}
 
+public:
+	bool IsVisible()				{ return m_pAxisPos != NULL; }
+	void SetTextColor(ulong color)	{ m_textColor = color; }
+
+public:
 	void UpdateDisplay()
 	{
-		s_Display.SetArea(*m_pAxisArea);
-		if (m_pAxisPos->IsDisabled())
+		if (IsVisible())
 		{
-			s_Display.ClearArea();
-			return;
+			s_Display.SetArea(*m_pAxisArea);
+			s_Display.SetTextColor(m_textColor);
+			s_Display.PrintSigned(GetPosition(), 9,  m_pAxisPos->GetDecimals());
 		}
-
-		s_Display.SetTextColor(m_textColor);
-		s_Display.PrintSigned(m_pAxisPos->GetPosition(), 9,  m_pAxisPos->GetDecimals());
-	}
-
-	void SetTextColor(ulong color)
-	{
-		m_textColor = color;
 	}
 
 	double GetPosition()
 	{
-		return m_pAxisPos->GetPosition();
+		double pos = IsVisible() ? m_pAxisPos->GetPosition() : 0;
+		if (m_isLatheX && !Eeprom.Data.fLatheRadius)
+			pos *= 2;
+		return pos;
 	}
 
 	void SetPosition(double pos)
 	{
-		long		posUndo;
-		UndoInfo	&undo = m_arUndoInfo[Eeprom.Data.OriginNum];
-
-		posUndo = m_pAxisPos->SetPosition(pos);
-		if (posUndo != 0)
-		{
-			++undo.cur %= UndoLevels;
-			undo.value[undo.cur] = posUndo;
-			if (undo.count < UndoLevels)
-				undo.count++;
+		if (m_isLatheX && !Eeprom.Data.fLatheRadius)
+			pos /= 2;
+		if (IsVisible() && m_pAxisPos->SetPosition(pos) != 0)
 			DisplayUndo();
-		}
 	}
 
 	void Undo()
 	{
-		UndoInfo	&undo = m_arUndoInfo[Eeprom.Data.OriginNum];
-
-		if (undo.count == 0)
-			return;
-
-		m_pAxisPos->AdjustOrigin(undo.value[undo.cur]);
-		undo.value[undo.cur] = 0;
-		--undo.cur %= UndoLevels;
-		undo.count--;
-		DisplayUndo();
+		if (IsVisible() && m_pAxisPos->Undo())
+			DisplayUndo();
 	}
-
+	
 public:
 	static void UpdateAll()
 	{
@@ -111,6 +101,101 @@ public:
 		Ydisplay.DisplayUndo();
 		Zdisplay.DisplayUndo();
 	}
+	
+	static void AssignDisplays()
+	{
+		int			curDisplay = 0;
+		AxisPos*	pSense;
+		
+		if (Eeprom.Data.fIsLathe)
+		{
+			// For lathe, sensor can be assigned any axis. We will
+			// display them in order: X, Z, Z', T (choosing top 3).
+			s_latheXpos = NULL;
+			s_latheZpos = NULL;
+			
+			if ((pSense = FindAssignment(LATHE_X)) != NULL)
+			{
+				// Cross slide
+				s_latheXpos = pSense;
+				Axes[curDisplay++]->AssignDisplay(pSense, LABEL_X, true);
+			}
+			
+			if ((pSense = FindAssignment(LATHE_Z)) != NULL)
+			{
+				// Carriage
+				s_latheZpos = pSense;
+				Axes[curDisplay++]->AssignDisplay(pSense, LABEL_Z);
+			}
+			
+			if ((pSense = FindAssignment(LATHE_Zprime)) != NULL)
+			{
+				// Compound
+				Axes[curDisplay++]->AssignDisplay(pSense, LABEL_Zprime);
+				if (Eeprom.Data.fCompoundFactor)
+				{
+					if (s_latheXpos != NULL)
+						s_latheXpos->SetSensor(pSense);
+						
+					if (s_latheZpos != NULL)
+						s_latheZpos->SetSensor(pSense);
+				}
+			}
+			
+			if (curDisplay < AxisDisplayCount && (pSense = FindAssignment(LATHE_T)) != NULL)
+			{
+				// Tailstock
+				Axes[curDisplay++]->AssignDisplay(pSense, LABEL_T);
+			}
+		}
+		else
+		{
+			// For mill, sensor order is fixed: X, Y, Z, Q, although
+			// some may be skipped.
+			for (int i = 0; i < AxisPosCount; i++)
+			{
+				pSense = AxisPositions[i];
+				if (!pSense->IsDisabled())
+				{
+					if (curDisplay < AxisDisplayCount)
+					{
+						pSense->SetSensor(NULL);
+						Axes[curDisplay++]->AssignDisplay(pSense, i);
+					}
+					else
+					{
+						Zpos.SetSensor(pSense);
+						Zpos.SetFactor(1.0);
+						break;
+					}
+				}
+			}
+		}
+		
+		for (; curDisplay < AxisDisplayCount; curDisplay++)
+			Axes[curDisplay]->AssignDisplay(NULL, 0);
+			
+		for (curDisplay = 0; curDisplay < AxisDisplayCount; curDisplay++)
+		{
+			pSense = Axes[curDisplay]->m_pAxisPos;
+			if (pSense != NULL)
+				pSense->SetRounding();
+		}
+	}
+	
+	static void SetCompoundAngle(double angle)
+	{
+		if (Eeprom.Data.fCompoundFactor)
+		{
+			angle *= M_PI / 180;	// convert degrees to radians
+			
+			if (s_latheXpos != NULL)
+				s_latheXpos->SetFactor(sin(angle));
+						
+			if (s_latheZpos != NULL)
+				s_latheZpos->SetFactor(cos(angle));
+		}
+	}
 
 	//*********************************************************************
 	// Helpers
@@ -118,36 +203,82 @@ public:
 protected:
 	void DisplayUndo()
 	{
-		uint		cur;
-		UndoInfo	&undo = m_arUndoInfo[Eeprom.Data.OriginNum];
-
-		cur = undo.cur;
-		for (uint i = 0; i < UndoDisplays; i++)
+		if (IsVisible())
 		{
-			s_UndoDisplay.PrintSigned(m_pAxisPos->GetDistance(undo.value[cur]), 
-				8, m_pAxisPos->GetDecimals() - 1, m_pUndoArea[i]);
-				
-			--cur %= UndoLevels;
+			for (uint i = 0; i < UndoDisplays; i++)
+			{
+				double pos = m_pAxisPos->GetUndoValue(i);
+				if (m_isLatheX && !Eeprom.Data.fLatheRadius)
+					pos *= 2;
+				s_UndoDisplay.PrintSigned(pos, 8, m_pAxisPos->GetDecimals() - 1, m_pUndoArea[i]);
+			}
 		}
 	}
 
+	void AssignDisplay(AxisPos *pAxis, int labelIndex, bool isLatheX = false)
+	{
+		m_pAxisPos = pAxis;
+		m_isLatheX = isLatheX;
+		
+		if (IsVisible())
+		{
+			Lcd.FillRect(&MainScreen, m_pAxisArea, AxisBackColor);
+			Lcd.FillRect(&MainScreen, m_pUndoArea, UndoBackColor);
+			Lcd.SelectImage(&MainScreen, m_pButtonArea, &AxisZero, labelIndex);
+			Lcd.SelectImage(&MainScreen, m_pUndoLabelArea, &UndoLabels, labelIndex);
+		}
+		else
+		{
+			Lcd.FillRect(&MainScreen, m_pAxisArea, ScreenBackColor);
+			Lcd.FillRect(&MainScreen, m_pButtonArea, ScreenBackColor);
+			Lcd.FillRect(&MainScreen, m_pUndoArea, ScreenBackColor);
+			Lcd.FillRect(&MainScreen, m_pUndoLabelArea, ScreenBackColor);
+		}
+	}
+	
+protected:
+	static AxisPos *FindAssignment(int assign)
+	{
+		for (int i = 0; i < AxisPosCount; i++)
+		{
+			if (Eeprom.Data.LatheAssign[i] == assign)
+				return AxisPositions[i];
+		}
+		return NULL;
+	}
+	
 	//*********************************************************************
 	// instance (RAM) data
 	//*********************************************************************
 protected:
+	bool		m_isLatheX;
 	AxisPos		*m_pAxisPos;
 	ulong		m_textColor;
 	const Area	*m_pAxisArea;
+	const Area	*m_pButtonArea;
 	const Area	*m_pUndoArea;
-	UndoInfo	m_arUndoInfo[PosSensor::MaxOrigins];
+	const Area	*m_pUndoLabelArea;
 
 	//*********************************************************************
 	// static (RAM) data
 	//*********************************************************************
 protected:
+	// These track which sensors are on lathe X and Z. This allows them
+	// to be affected by the compound (Z'), depending on its angle.
+	inline static AxisPos*	s_latheXpos;
+	inline static AxisPos*	s_latheZpos;
+	
 	inline static NumberLine		s_Display{MainScreen, MainScreen_Areas.Xdisplay, 
 		FONT_DigitDisplay, AxisForeColor, AxisBackColor};
 
 	inline static NumberLineBlankZ	s_UndoDisplay{MainScreen, MainScreen_Areas.UndoX1, 
 		FONT_CalcSmall, UndoTextColor, UndoBackColor};
+
+	//*********************************************************************
+	// const (flash) data
+	//*********************************************************************
+public:		
+	inline static AxisDisplay* const Axes[AxisDisplayCount] = { &Xdisplay, &Ydisplay, &Zdisplay };
+		
+	inline static AxisPos* const AxisPositions[AxisPosCount] = { &Xpos, &Ypos, &Zpos, &Qpos };
 };

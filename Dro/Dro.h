@@ -19,6 +19,7 @@
 #define PROGRAM_VERSION		6
 #define GRAPHICS_VERSION	4
 #define FONT_VERSION		1
+#define FLASH_VERSION		2
 
 // Debugging options
 #ifdef DEBUG
@@ -35,6 +36,7 @@
 #define UDATE_FROM_VIDEO_RAM	0
 
 static constexpr double MmPerInch = 25.4;
+static constexpr int UnitFactor = 10000;	// internal units per mm
 
 // externs
 void ChangeScreenBrightness(int change);
@@ -484,10 +486,13 @@ typedef RtcTimeBase<> RtcTime;
 struct SensorInfo
 {
 	double	Correction;
-	byte	Resolution;		// microns (typically 5)
+	byte	Resolution;		// 0.1 micron units (typically 50)
 	bool	Direction;
 	bool	Disable;
 };
+
+static constexpr int AxisPosCount = 4;
+typedef byte LatheAssignmentList[AxisPosCount];
 
 #include "Xtp2046.h"
 

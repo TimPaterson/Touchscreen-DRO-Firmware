@@ -33,6 +33,11 @@ class ToolLib
 	static constexpr ushort InvalidTool = 0;			// occurs in tool number
 	static constexpr ushort EmptyTool = 0xFFFF;			// occurs in tool number
 	static constexpr ushort	MaxToolNumber = 999;
+	static constexpr double MaxToolDiameter = 99.999;	// mm
+	static constexpr double MaxToolLength = 999.999;	// mm
+	static constexpr double MaxToolFlutes = 99;
+	static constexpr double MaxChipLoad = 9.9999;		// mm/tooth
+	static constexpr double MaxSurfaceSpeed = 9999;		// meters/min
 
 	#define ToolListStartAddr	0x18000
 	#define ToolListStart		((ToolLibInfo *)ToolListStartAddr)
@@ -85,9 +90,11 @@ class ToolLib
 	struct ToolLibBase
 	{
 		ushort	number;
-		ushort	flutes;
-		double	diameter;
-		double	length;
+		byte	flutes;
+		bool	isLathe;
+		// measurements in 0.1um units
+		long	diameter;	// x for lathe
+		long	length;		// z
 	};
 
 	static constexpr int ToolDescSize = ToolEntrySize - sizeof(ToolLibBase);
@@ -175,7 +182,7 @@ class ToolLib
 
 	//*********************************************************************
 	// Public interface
-	//*********************************************************************3
+	//*********************************************************************
 public:
 	// .cpp file
 	void ToolAction(uint spot, int x, int y);
@@ -197,8 +204,8 @@ public:
 	static int FileErrorCallback(int err);
 
 protected:
-	int ImportTool(char *pchBuf);
-
+	static int ImportTool(char *pchBuf);
+	
 public:
 	void Init()
 	{
@@ -218,8 +225,9 @@ public:
 			tool = pTool->number;
 			if (tool == EmptyTool)
 			{
-				m_pFreeTool = pTool;
-				break;
+				if (m_pFreeTool == ToolListEnd)
+					m_pFreeTool = pTool;
+				continue;
 			}
 
 			if (tool == InvalidTool || tool > MaxToolNumber)
@@ -415,7 +423,7 @@ NewTool:
 			if (pTool->number != EmptyTool)
 			{
 				ToolRowBuf[i] = pTool[i];
-				Nvm::WritePage();
+				Nvm::WritePageReady();
 			}
 		}
 		return pToolFree;
@@ -686,11 +694,11 @@ protected:
 		return Lcd.GetPip1()->pImage == &ToolLibrary;
 	}
 
-	static double LimitVal(double val, double max)
+	static long LimitVal(double val, double max)
 	{
-		if (IsMetric())
-			max *= 10.0;
-		return CheckMetric(std::min(val, max), false);
+		if (!IsMetric())
+			val *= MmPerInch;
+		return lround(std::min(val, max) * UnitFactor);
 	}
 
 	static void PrepareDrawTool()
@@ -707,28 +715,14 @@ protected:
 		Lcd.WaitWhileBusy();
 	}
 
-	static double CheckMetric(double val, bool fToDisplay = true)
+	static double CheckMetric(long val)
 	{
-		double	factor;
-
-		if (Eeprom.Data.fIsMetric == Eeprom.Data.fToolLibMetric)
-			return val;
-
-		factor = (fToDisplay ^ Eeprom.Data.fToolLibMetric) ? MmPerInch : 1.0 / MmPerInch;
-		return val * factor;
+		return (double)val / (IsMetric() ? UnitFactor : UnitFactor * MmPerInch);
 	}
 
-	static double CheckMetricSurface(double val, bool fToDisplay = true)
+	static double CheckMetricSurface(double val)
 	{
-		double	factor;
-
-		if (Eeprom.Data.fIsMetric == Eeprom.Data.fToolLibMetric)
-			return val;
-
-		factor = MmPerInch * 12.0 / 1000.0;	// meters / foot
-		if (!(fToDisplay ^ Eeprom.Data.fToolLibMetric))
-			factor = 1 / factor;
-		return val * factor;
+		return IsMetric() ? val : val / (MmPerInch * 12.0 / 1000.0);	// meters / foot
 	}
 
 	static void SetToolButtonImage(ToolButtonImages image)

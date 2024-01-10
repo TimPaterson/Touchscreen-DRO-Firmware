@@ -52,6 +52,9 @@ protected:
 	// Public interface
 	//*********************************************************************3
 public:
+	void SetCanvas(Canvas* pCanvas)	{ m_pCanvas = pCanvas; }
+	
+public:
 	void SetFont(FontInfo &font)
 	{
 		m_pFontInfo = &font;

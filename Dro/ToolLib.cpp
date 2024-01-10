@@ -110,18 +110,15 @@ void ToolLib::ToolAction(uint spot, int x, int y)
 			switch (spot)
 			{
 			case ToolFlutes:
-				val = std::min(val, 99.0);
-				s_bufTool.flutes = (int)val;
+				s_bufTool.flutes = (byte)std::min(val, MaxToolFlutes);
 				break;
 
 			case ToolDiameter:
-				val = LimitVal(val, 9.999);
-				s_bufTool.diameter = val;
+				s_bufTool.diameter = LimitVal(val, MaxToolDiameter);
 				break;
 
 			case ToolLength:
-				val = LimitVal(val, 99.999);
-				s_bufTool.length = val;
+				s_bufTool.length = LimitVal(val, MaxToolLength);
 				break;
 
 			case ToolDesc:
@@ -133,14 +130,14 @@ void ToolLib::ToolAction(uint spot, int x, int y)
 				return;
 
 			case ToolChipLoad:
-				val = LimitVal(val, 0.9999);
-				Eeprom.Data.ChipLoad = val;
+				Eeprom.Data.ChipLoad = LimitVal(val, MaxChipLoad);
 				Eeprom.StartSave();
 				break;
 
 			case ToolSfm:
-				val = CheckMetricSurface(std::min(val, 9999.0), false);
-				Eeprom.Data.Sfm = val;
+				if (!IsMetric())
+					val *= MmPerInch * 12.0 / 1000.0;	// meters / foot
+				Eeprom.Data.Sfm = std::min(val, MaxSurfaceSpeed);
 				Eeprom.StartSave();
 				break;
 			}
@@ -356,6 +353,7 @@ SetImportExportImages:
 void ToolLib::ShowToolInfo()
 {
 	double	val;
+	long	uVal;
 	uint	sides;
 	ulong	color;
 	ToolLibInfo	*pInfo;
@@ -381,8 +379,8 @@ void ToolLib::ShowToolInfo()
 	// Compute and display RPM
 	if (pInfo->diameter != 0 && Eeprom.Data.Sfm != 0)
 	{
-		val = Eeprom.Data.Sfm / (pInfo->diameter * M_PI);
-		val *= Eeprom.Data.fToolLibMetric ? 1000 : 12;
+		// SFM in meters/min, Diameter in 0.1 micron units
+		val = Eeprom.Data.Sfm / (pInfo->diameter * M_PI / 1000 / UnitFactor);
 		val = std::min(val, (double)Eeprom.Data.MaxRpm);
 	}
 	else
@@ -402,15 +400,15 @@ void ToolLib::ShowToolInfo()
 	DrawTool(sides & ToolBackBit,  ToolBack_X,  ToolBack_Y);
 	DrawTool(sides & ToolFrontBit, ToolFront_X, ToolFront_Y);
 
-	val = CheckMetric(pInfo->diameter / 2);
-	Xpos.SetOffset(sides & ToolLeftBit ? val : (sides & ToolRightBit ? -val : 0));
+	uVal = pInfo->diameter / 2;
+	Xpos.SetOffset(sides & ToolLeftBit ? uVal : (sides & ToolRightBit ? -uVal : 0));
 	if (Eeprom.Data.fCncCoordinates)
-		val = -val;
-	Ypos.SetOffset(sides & ToolFrontBit ? -val : (sides & ToolBackBit ? val : 0));
-	val = CheckMetric(pInfo->length);
+		uVal = -uVal;
+	Ypos.SetOffset(sides & ToolFrontBit ? -uVal : (sides & ToolBackBit ? uVal : 0));
+	uVal =pInfo->length;
 	if (Eeprom.Data.fCncCoordinates)
-		val = -val;
-	Zpos.SetOffset(Eeprom.Data.fToolLenAffectsZ ? val : 0);
+		uVal = -uVal;
+	Zpos.SetOffset(Eeprom.Data.fToolLenAffectsZ ? uVal : 0);
 
 	color = Eeprom.Data.fHighlightOffset && pInfo->diameter != 0 ? ToolColor : AxisForeColor;
 	Xdisplay.SetTextColor(sides & (ToolLeftBit | ToolRightBit) ? color : AxisForeColor);
@@ -596,11 +594,11 @@ int ToolLib::ImportTool(char *pchBuf)
 	if (*pchBuf++ != ',')
 		return IMPERR_BadTool;
 
-	s_bufTool.diameter = strtod(pchBuf, &pchBuf);
+	s_bufTool.diameter = LimitVal(strtod(pchBuf, &pchBuf), MaxToolDiameter);
 	if (*pchBuf++ != ',')
 		return IMPERR_BadTool;
 
-	s_bufTool.length = strtod(pchBuf, &pchBuf);
+	s_bufTool.length = LimitVal(strtod(pchBuf, &pchBuf), MaxToolLength);
 	if (*pchBuf++ != ',')
 		return IMPERR_BadTool;
 
@@ -706,7 +704,6 @@ void ToolLib::ImportDone(int err)
 	ShowToolInfo();
 	CloseImportExport();
 }
-
 
 //*********************************************************************
 // Tool Library Export

@@ -26,7 +26,10 @@
 
 EepromData(TouchInfo, TouchInit, { {}, {}, \
 	TouchDefaultMinZ, TouchUpdateRate, TouchInitialDiscard, TouchAverageShift})
+// 32-bit aligned here
 EepromData(ulong, Brightness, LcdBacklightPwmMax)
+// 32-bit aligned here
+#define	g_arAxisInfo	(&Eeprom.Data.XaxisInfo) // treat next as array
 EepromData(SensorInfo, XaxisInfo, { 1.0, 5, false, false })
 EepromData(SensorInfo, YaxisInfo, { 1.0, 5, false, false })
 EepromData(SensorInfo, ZaxisInfo, { 1.0, 5, false, false })
@@ -37,14 +40,24 @@ EepromData(byte, OriginNum, 0)
 EepromData(bool, fHighlightOffset, true)
 EepromData(bool, fToolLenAffectsZ, true)
 // 32-bit aligned here
-EepromData(double, ChipLoad, 0)
-EepromData(double, Sfm, 0)
+EepromData(double, OldChipLoad, 0)	// replaced by ChipLoad
+EepromData(double, Sfm, 0)			// kept in meters/min
 // 32-bit aligned here
 EepromData(ushort, MaxRpm, 10000)
 EepromData(bool, fCncCoordinates, false)
-EepromData(bool, fToolLibMetric, false)
+EepromData(bool, fToolLibMetric, false)	// not used
 // 32-bit aligned here
 EepromData(ushort, Tool, 0)
+EepromData(ushort, FlashVersion, 1)
+EepromData(long, ChipLoad, 0)
+// 32-bit aligned here
+EepromData(LatheAssignmentList, LatheAssign, {LATHE_X, LATHE_Z, LATHE_Zprime, LATHE_None})
+// 32-bit aligned here
+EepromData(double, CompoundAngle, 0)
+// 32-bit aligned here
+EepromData(bool, fIsLathe, false)
+EepromData(bool, fCompoundFactor, true)
+EepromData(bool, fLatheRadius, false)
 
 // Undefine all the macros now
 #undef	EepromData

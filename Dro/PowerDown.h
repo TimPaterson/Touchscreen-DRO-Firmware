@@ -8,13 +8,17 @@
 #pragma once
 
 
+#define DEFAULT_TIME	1, 1, 2024, 12, 0, 0	// month, day, year, hour, minute second
+
+
 struct PowerDownSave
 {
-	ulong	version;
 	RtcTime	rtcTime;
 	long	arXaxisPos[2];
 	long	arYaxisPos[2];
 	long	arZaxisPos[2];
+	long	arQaxisPos[2];
+	long	reserved[7];	// round up to a whole page
 };
 
 
@@ -62,12 +66,12 @@ public:
 		PowerDownSave	&save = *s_pSaveNext;
 
 		// Fill in data to save
-		save.version = s_version;
 		save.rtcTime.ReadClock();
 
 		SaveAxis(Xpos, save.arXaxisPos);
 		SaveAxis(Ypos, save.arYaxisPos);
 		SaveAxis(Zpos, save.arZaxisPos);
+		SaveAxis(Qpos, save.arQaxisPos);
 		Nvm::WriteRwweePageReady();
 	}
 
@@ -75,35 +79,32 @@ public:
 	{
 		PowerDownSave	*pSaveCur;
 		PowerDownSave	*pSave = 0;
-		RtcTime			time;
-		ulong			version = 0;
+		RtcTime			time = 0;
 
 		// Find the last save block
 		pSaveCur = pSaveStart;
 		for (int i = 0; i < MaxSaveSpots; i++, pSaveCur++)
 		{
-			if (pSaveCur->version == Unprogrammed)
+			if (pSaveCur->rtcTime == Unprogrammed)
 			{
 				if (s_pSaveNext == NULL)
 					s_pSaveNext = pSaveCur;
 				continue;
 			}
 
-			if (pSaveCur->version > version)
+			if (pSaveCur->rtcTime > time)
 			{
-				version = pSaveCur->version;
+				time = pSaveCur->rtcTime;
 				pSave = pSaveCur;
 			}
 		}
 
-		s_version = version + 1;
-
-		if (version != 0)
+		if (time != 0)
 		{
-			time = pSave->rtcTime;
 			RestoreAxis(Xpos, pSave->arXaxisPos);
 			RestoreAxis(Ypos, pSave->arYaxisPos);
 			RestoreAxis(Zpos, pSave->arZaxisPos);
+			RestoreAxis(Qpos, pSave->arQaxisPos);
 
 			pSave++;	// most likely next save location
 			if (pSave >= pSaveEnd)
@@ -113,7 +114,7 @@ public:
 		{
 			pSave = pSaveStart;
 			// Default time
-			time.SetTime(3, 17, 2021, 3 + 12, 47, 0);
+			time.SetTime(DEFAULT_TIME);
 		}
 
 		// Make sure we're ready for next save
@@ -126,6 +127,12 @@ public:
 		}
 
 		return time;
+	}
+	
+	static void EraseAllSaved()
+	{
+		Nvm::EraseRwweeRowReady(pSaveStart);
+		Nvm::EraseRwweeRow(ADDOFFSET(pSaveStart, FlashRowSize));
 	}
 
 protected:
@@ -145,6 +152,5 @@ protected:
 	}
 
 	inline static PowerDownSave	*s_pSaveNext;
-	inline static ulong			s_version;
 	inline static byte			s_isStandby;
 };
