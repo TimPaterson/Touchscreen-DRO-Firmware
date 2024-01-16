@@ -19,7 +19,7 @@
 //*************************************************************************
 // Define the tacked-on characters in each CharSet
 
-#define START_CHARSET(name)			enum CharValues_name {
+#define START_CHARSET(name)			enum CharValues_##name {
 #define DEFINE_CHAR(name, chr, val)	chr = val,
 #define END_CHARSET(name)			};
 

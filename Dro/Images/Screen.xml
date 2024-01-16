@@ -28,6 +28,7 @@
   <Set ShowValue="ScrollBarWidth">ScrollBarWidth</Set>
   <Font Name="BtnFont" FontSize="BtnFontSize" FontFamily="Arial"/>
   <Font Name="BtnSmallFont" FontSize="BtnFontSize * 3 / 4" />
+  <Font Name="AngleFont" Font="SettingsFont"/>
   <Color Name="ScreenForeColor" Color="Black" ColorDepth="Color16bpp"/>
   <Color Name="ScreenBackColor" Color="0xC0FFFF" ColorDepth="Color16bpp"/>
   <Color Name="AxisForeColor" Color="Black" />
@@ -56,10 +57,12 @@
     <TextBlock Name="DigitDisplayMinus" Font="DigitDisplay">-</TextBlock>
     <TextBlock Name="DigitDisplayDot" Font="DigitDisplay">.</TextBlock>
     <TextBlock Name="CalcSmallDot" Font="CalcSmall">.</TextBlock>
+    <TextBlock Name="AngleFontDot" Font="AngleFont">.</TextBlock>
     <Set>
       DigitDisplay_WidthMinus = DigitDisplayMinus.Width;
       DigitDisplay_WidthDot = DigitDisplayDot.Width;
       CalcSmall_WidthDot = CalcSmallDot.Width;
+      AngleFont_Height = AngleFontDot.Height;
     </Set>
   </Component>
 
@@ -99,6 +102,14 @@
     <Set>
       Upper.Text = "dia";
     	Lower.Text = "rad";
+    </Set>
+  </Component>
+
+  <Component Name="OnOff">
+    <Ref RefName="Toggle"/>
+    <Set>
+      Upper.Text = "on";
+    	Lower.Text = "off";
     </Set>
   </Component>
 
@@ -415,6 +426,7 @@
         <Column>
           <Set>
             ToolCell.StrokeThickness = 0;
+            CellText.Top = 0;
             CellText.Width = SpCellWidth * 2;
             CellText.Text = Speed;
             CellText.Name = Header;
@@ -743,6 +755,7 @@
           <Column>
             <Set>
               Label.Text = π;
+              Label.Top = 0;
             	Button.Group = "Edit";
               Button.HotSpot = Key_pi;
             </Set>
@@ -948,9 +961,28 @@
     </Rectangle>
   </Canvas>
 
+  <Component Name="AngleText">
+    <TextBlock Name="AngleText" HotSpot="CompoundAngle" Font="AngleFont">180.0°</TextBlock>
+  </Component>
+
   <Set>
     LatheInfoHeight = ScreenHeight - ToolTop;
     LatheSpeedTop = SpeedTop - ToolTop;
+    <!-- Compound angle -->
+    CompoundSize = 84;
+    AngleBoxLeft = BtnWidth + 2 * KeySpace;
+    AngleBoxHeight = CompoundSize + SpCellHeight;
+    AngleTextWidth = AngleText.Width + KeySpace - 1;
+    AngleBoxWidth = BtnWidth + CompoundSize + AngleTextWidth + 3 * KeySpace;
+    AngleDiagramTop = SpCellHeight;
+    AngleAreaLeft = BtnWidth + KeySpace;
+    AngleAreaWidth = CompoundSize + AngleTextWidth + 2 * KeySpace;
+    AngleDiagramLeft = KeySpace;
+    AngleTextTop = (CompoundSize - AngleFont_Height) / 2;
+    AngleTextLeft = AngleDiagramLeft + CompoundSize + KeySpace;
+    AngleButtonTop = (CompoundSize - BtnHeight) / 2;
+    LatheButtonTop = LatheSpeedTop + SpCellHeight + AngleButtonTop;
+    SpeedTableLeft = AngleBoxLeft + AngleBoxWidth + KeySpace;
   </Set>
   <Canvas Name="LatheMain" Width="KeypadLeft" Height="LatheInfoHeight" ColorDepth="Color16bpp" Fill="ScreenBackColor">
     <Ref RefName="LatheToolLabels" Left="KeySpace">
@@ -985,17 +1017,66 @@
         Button.HotSpot = LatheToolMenu;
       </Set>
     </Ref>
-    <Ref RefName="DiameterRadius" Left="KeySpace" Top="LatheSpeedTop + SpCellHeight">
+    <Ref RefName="DiameterRadius" Left="KeySpace" Top="LatheButtonTop">
       <Set>
         Button.Area = "DiameterRadius";
         Button.HotSpot = "DiameterRadius"
       </Set>
     </Ref>
-    <Ref RefName="SpeedTable" Top="LatheSpeedTop" Left ="KeypadLeft - SpeedWidth - KeySpace">
+    <Ref RefName="SpeedTable" Top="LatheSpeedTop" Left ="SpeedTableLeft">
       <Set>
         UpperLabel.Area = SpeedUnits;
+        Sfm.Area = Sfm;
+        Rpm.Area = Rpm;
       </Set>
     </Ref>
+    <Rectangle Top ="LatheSpeedTop" Left="AngleBoxLeft" Width="AngleBoxWidth" Height="AngleBoxHeight">
+      <TextBlock Name="AngleHeader" Top="1" Font="CalcSmall">Compound Angle</TextBlock>
+      <Rectangle Name="AngleBox" Left="0" Top="AngleDiagramTop" Width="AngleBoxWidth" Height="CompoundSize" Stroke="Black" StrokeThickness="1">
+        <Ref RefName="OnOff" Top="AngleButtonTop" Left="KeySpace">
+          <Set>
+            Button.HotSpot = CompoundEnable;
+            Button.Area = CompoundEnable;
+          </Set>
+        </Ref>
+        <Rectangle Area="AngleDisplay" Left="AngleAreaLeft" Height="CompoundSize" Width="AngleAreaWidth">
+          <Ref RefName="AngleText" Left="AngleTextLeft" Top="AngleTextTop"/>
+          <Rectangle Area="CompoundAngle" Left="AngleTextLeft" Top="AngleTextTop" Width="AngleTextWidth - 1" Height="AngleFont_Height"/>
+          <Set>
+            CircleSize = 40;
+            CirclePos = (CompoundSize - CircleSize) / 2;
+            BoxHeight = CircleSize - 10;
+            BoxTop = (CompoundSize - BoxHeight) / 2;
+            BoxLeft = 0;
+            BoxWidth = 66;
+            AxleLength = 4;
+            AxleWidth = 5;
+            AxleLeft = BoxWidth + BoxLeft;
+            AxleTop = (CompoundSize - AxleWidth) / 2;
+            CrankLength = 17;
+            CrankWidth = 4;
+            CrankLeft = AxleLeft + AxleLength;
+            CrankTop = AxleTop + AxleWidth - CrankLength;
+            HandleLength = 10;
+            HandleWidth = 5;
+            HandleLeft = CrankLeft + CrankWidth;
+            HandleTop = CrankTop;
+            PostSize = 22;
+            PostTop = (CompoundSize - PostSize) / 2;
+            PostLeft = BoxLeft + (BoxHeight - PostSize) / 2;
+          </Set>
+          <Rectangle Left="AngleDiagramLeft" Top="0" Width="CompoundSize" Height="CompoundSize" Stroke="Black" StrokeThickness="0">
+            <Ellipse Top="CirclePos" Left="CirclePos" Height="CircleSize" Width="CircleSize" Stroke="Black" StrokeThickness="0" Fill="0xFF707070"/>
+            <Rectangle Left="BoxLeft" Top="BoxTop" Width="BoxWidth" Height="BoxHeight" Stroke="Black" StrokeThickness="0" Fill="0xFF909090"/>
+            <Rectangle Left="PostLeft" Top="PostTop" Width="PostSize" Height="PostSize" Fill="Black"/>
+
+            <Rectangle Left="AxleLeft" Top="AxleTop" Width="AxleLength" Height="AxleWidth" Fill="Black"/>
+            <Rectangle Left="CrankLeft" Top="CrankTop" Width="CrankWidth" Height="CrankLength" Fill="Black"/>
+            <Rectangle Left="HandleLeft" Top="HandleTop" Width="HandleLength" Height="HandleWidth" Fill="Black"/>
+          </Rectangle>
+        </Rectangle>
+      </Rectangle>
+    </Rectangle>
   </Canvas>
 
   <!-- Key images -->
@@ -1038,6 +1119,20 @@
     <Item>
       <Ref RefName="DiameterRadius">
         <Set>Lower.Foreground=ToggleOn;</Set>
+      </Ref>
+    </Item>
+  </Canvas>
+
+  <!-- On/off, for laathe compound angle -->
+  <Canvas Name="OnOffBtn" Type="Overlay" Height="BtnHeight" ItemWidth="BtnWidth" Fill="ScreenBackColor" ColorDepth="Color16bpp">
+    <Item>
+      <Ref RefName="OnOff">
+        <Set>Lower.Foreground=ToggleOn;</Set>
+      </Ref>
+    </Item>
+    <Item>
+      <Ref RefName="OnOff">
+        <Set>Upper.Foreground=ToggleOn;</Set>
       </Ref>
     </Item>
   </Canvas>

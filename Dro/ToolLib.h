@@ -10,7 +10,6 @@
 #include "HotspotList.h"
 #include "LcdDef.h"
 #include "ListScroll.h"
-#include "AxisDisplay.h"
 #include "EditLine.h"
 #include "KeyboardMgr.h"
 #include "FileBrowser.h"
@@ -276,6 +275,23 @@ public:
 		s_feedRate.PrintDbl("\n%5.0f", rate);
 	}
 
+	static void ShowLatheRpm(uint rpm)
+	{
+		s_LatheMain.PrintUint("%5u", (uint)rpm, LatheMain_Areas.Rpm);
+	}
+	
+	static void ShowCompoundAngle(double angle)
+	{
+		if (!Eeprom.Data.fCompoundFactor)
+		{
+			s_CompoundAngle.ClearArea();
+			return;
+		}
+		
+		// Character 0x7f is the degree symbol
+		s_CompoundAngle.PrintDbl("%5.1f\x7f\n", angle);
+	}
+	
 	//*********************************************************************
 	// Helpers
 	//*********************************************************************
@@ -729,7 +745,7 @@ protected:
 	{
 		Lcd.SelectImage(&ToolLibrary, &ToolLibrary_Areas.ToolButtons, &ToolButtons, image);
 	}
-
+	
 	//*********************************************************************
 	// const (flash) data
 	//*********************************************************************
@@ -780,6 +796,12 @@ protected:
 
 	inline static NumberLineBlankZ	s_feedRate {MainScreen, MainScreen_Areas.CurrentFeedRate,
 		FONT_SettingsFont, FeedRateColor, ToolDiagramColor};
+
+	inline static NumberLineBlankZ	s_LatheMain{LatheMain, LatheMain_Areas.Rpm, 
+		FONT_CalcSmall, ScreenForeColor, ScreenBackColor};
+
+	inline static NumberLine	s_CompoundAngle{LatheMain, LatheMain_Areas.CompoundAngle, 
+		FONT_SettingsFont, ScreenForeColor, ScreenBackColor};
 
 	inline static ushort		s_arSortList[MaxToolCount];
 };

@@ -18,7 +18,7 @@
 
 #define PROGRAM_VERSION		6
 #define GRAPHICS_VERSION	4
-#define FONT_VERSION		1
+#define FONT_VERSION		2
 #define FLASH_VERSION		2
 
 // Debugging options

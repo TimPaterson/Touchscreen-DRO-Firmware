@@ -365,10 +365,9 @@ void ToolLib::ShowToolInfo()
 	s_textInfo.DisplayLine(pInfo);
 
 	// SFM
-	s_textMain.PrintDbl(
-		"%5.0f",
-		CheckMetricSurface(Eeprom.Data.Sfm),
-		MainScreen_Areas.Sfm);
+	val = CheckMetricSurface(Eeprom.Data.Sfm);
+	s_textMain.PrintDbl("%5.0f", val, MainScreen_Areas.Sfm);
+	s_LatheMain.PrintDbl("%5.0f", val, LatheMain_Areas.Sfm);
 
 	// Chip load
 	s_textMain.PrintDbl(

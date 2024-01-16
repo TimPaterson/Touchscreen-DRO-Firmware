@@ -31,7 +31,7 @@ class TextField : public ScreenMgr
 public:
 	TextField(Canvas &canvas, const Area &area, FontInfo &font, ulong foreColor, ulong backColor):
 		TextField(canvas, area, font, foreColor, backColor,
-		({union {void (TextField::*mf)(byte); _fdev_put_t *p;} u = {&TextField::WriteCharActive}; u.p;})) 
+		({union {void (TextField::*mf)(byte); _fdev_put_t *p;} u = {&TextField::WriteCharActive}; u.p;}))
 		{}
 
 protected:
@@ -53,7 +53,7 @@ protected:
 	//*********************************************************************3
 public:
 	void SetCanvas(Canvas* pCanvas)	{ m_pCanvas = pCanvas; }
-	
+
 public:
 	void SetFont(FontInfo &font)
 	{
@@ -127,7 +127,7 @@ public:
 			WriteCharActive(ch);
 		}
 	}
-	
+
 	void WriteBlankSpace(ushort width)
 	{
 		Area area = {m_curPosX, m_pArea->Ypos, width, m_pArea->Height};
@@ -281,7 +281,7 @@ protected:
 class TextLine : public TextField
 {
 public:
-	TextLine(Canvas &canvas, const Area &area, FontInfo &font, ulong foreColor, ulong backColor): 
+	TextLine(Canvas &canvas, const Area &area, FontInfo &font, ulong foreColor, ulong backColor):
 		TextLine(canvas, area, font, foreColor, backColor,
 		({union {void (TextLine::*mf)(byte); _fdev_put_t *p;} u = {&TextLine::WriteCharActive}; u.p;}))
 		{}
@@ -322,7 +322,7 @@ public:
 class NumberLine : public TextLine
 {
 public:
-	NumberLine(Canvas &canvas, const Area &area, FontInfo &font, ulong foreColor, ulong backColor): 
+	NumberLine(Canvas &canvas, const Area &area, FontInfo &font, ulong foreColor, ulong backColor):
 		TextLine(canvas, area, font, foreColor, backColor)
 	{
 		SetSpaceWidth(GetStdCharWidth('0'));
@@ -347,8 +347,16 @@ public:
 			WriteBlankSpace(GetStdCharWidth('-'));
 			width--;
 		}
-			
+
 		return printf("%*.*f", width, decimals, val);
+	}
+	
+	int PrintDbl(const char *fmt, double val)
+	{
+		if (val < 0)
+			WriteBlankSpace(GetStdCharWidth('0') - GetStdCharWidth('-'));
+			
+		return printf(fmt, val);
 	}
 
 	void WriteString(const char *psz)
@@ -364,10 +372,10 @@ public:
 class NumberLineBlankZ : public NumberLine
 {
 public:
-	NumberLineBlankZ(Canvas &canvas, const Area &area, FontInfo &font, ulong foreColor, ulong backColor): 
+	NumberLineBlankZ(Canvas &canvas, const Area &area, FontInfo &font, ulong foreColor, ulong backColor):
 		NumberLine(canvas, area, font, foreColor, backColor)
 	{
-		SetBackgroundTransparent(true);
+		//SetBackgroundTransparent(true);
 	}
 
 public:
@@ -376,16 +384,16 @@ public:
 		ClearArea();
 		if (val == 0)
 			return 0;
-			
+
 		return NumberLine::PrintSigned(val, width, decimals);
 	}
-	
+
 	int PrintSigned(double val, int width, int decimals, const Area &area)
 	{
 		SetArea(area);
 		return PrintSigned(val, width, decimals);
 	}
-	
+
 	int PrintDbl(const char *fmt, double val)
 	{
 		ClearArea();
@@ -405,9 +413,11 @@ public:
 
 	int PrintInt(const char *fmt, int val)
 	{
-		ClearArea();
 		if (val == 0)
+		{
+			ClearArea();
 			return 0;
+		}
 
 		if (val < 0)
 			ShiftMinus();

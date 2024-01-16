@@ -30,7 +30,7 @@
     {
       "FontFamilyName": "Arial",
       "TypefaceName": "Regular",
-      "CharSetName": "Full",
+      "CharSetName": "Degrees",
       "Size": 36,
       "Threshold": 50,
       "PixelOffset": 0.30000000000000004,
@@ -81,6 +81,17 @@
       "FirstChar": 32,
       "LastChar": 126,
       "Name": "Full"
+    },
+    {
+      "Glyphs": [
+        {
+          "Char": 186,
+          "Name": "CH_Degree"
+        }
+      ],
+      "FirstChar": 32,
+      "LastChar": 126,
+      "Name": "Degrees"
     },
     {
       "Glyphs": [],

@@ -11,6 +11,7 @@
 #include "LcdDef.h"
 #include "TextField.h"
 #include "HotspotList.h"
+#include "ToolLib.h"
 
 
 class AxisDisplay;
@@ -62,6 +63,22 @@ public:
 			s_Display.SetArea(*m_pAxisArea);
 			s_Display.SetTextColor(m_textColor);
 			s_Display.PrintSigned(GetPosition(), 9,  m_pAxisPos->GetDecimals());
+			
+			if (m_isLatheX)
+			{
+				double val;
+				
+				// update RPM for current X at given SFM (really meters/min)
+				val = m_pAxisPos->GetPosition();	// radius, mm or inch
+				if (val <= 0)
+					val = 0;
+				else
+				{
+					val = Eeprom.Data.Sfm / (val * (2 * M_PI / (Eeprom.Data.fIsMetric ? 1000 : 1000 / 25.4)));
+					val = std::min(val, (double)Eeprom.Data.MaxRpm);
+					ToolLib::ShowLatheRpm((uint)val);
+				}
+			}
 		}
 	}
 
@@ -185,16 +202,24 @@ public:
 	
 	static void SetCompoundAngle(double angle)
 	{
+		double sine, cosine;
+			
 		if (Eeprom.Data.fCompoundFactor)
 		{
 			angle *= M_PI / 180;	// convert degrees to radians
-			
-			if (s_latheXpos != NULL)
-				s_latheXpos->SetFactor(sin(angle));
-						
-			if (s_latheZpos != NULL)
-				s_latheZpos->SetFactor(cos(angle));
+			__builtin_sincos(angle, &sine, &cosine);
 		}
+		else
+		{
+			sine = 0;
+			cosine = 0;
+		}
+			
+		if (s_latheXpos != NULL)
+			s_latheXpos->SetFactor(sine);
+						
+		if (s_latheZpos != NULL)
+			s_latheZpos->SetFactor(cosine);
 	}
 
 	//*********************************************************************

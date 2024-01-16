@@ -88,6 +88,7 @@ public:
 		ShowAbsInc();
 		ShowInchMetric();
 		ShowDiameterRadius();
+		ShowCompoundEnable();
 		Tools.Init();
 		Files.Init();
 	}
@@ -421,15 +422,15 @@ public:
 			pAxis->SetDirection(pAxis->GetDirection() ^ true);
 			ShowSettingsInfo();
 			return;
-			
+
 		case HOTSPOT_GROUP_Assign:
 			s_assignAxis = spot;
 			Lcd.EnablePip1(&LatheAssignList, LatheListLeft, LatheListTop + spot * LatheListHeight, true);
-			return;			
+			return;
 
 		case HOTSPOT_GROUP_AssignItem:
 			Eeprom.Data.LatheAssign[s_assignAxis] = spot;
-			// If this axis has been assigned to another sensor, 
+			// If this axis has been assigned to another sensor,
 			// unassign that one.
 			for (int i = 0; i < AxisPosCount; i++)
 			{
@@ -438,8 +439,8 @@ public:
 			}
 			Lcd.DisablePip1();
 			ShowSettingsInfo();
-			return;			
-			
+			return;
+
 		case HOTSPOT_GROUP_Machine:
 			Eeprom.Data.fIsLathe = spot;
 			Lcd.EnablePip2(spot == Mill ? &SettingsScreen : &LatheSettingsScreen, 0, 0);
@@ -497,10 +498,39 @@ public:
 				UpdateEeprom();
 				break;
 
+			case CompoundEnable:
+				Eeprom.Data.fCompoundFactor ^= true;
+				ShowCompoundEnable();
+				SetCompoundAngle(Eeprom.Data.CompoundAngle);
+				UpdateEeprom();
+				break;
+
+			case CompoundAngle:
+				if (!Eeprom.Data.fCompoundFactor)
+					return;
+				if (s_state == AS_Empty)
+				{
+					// Just reading the value
+					ToValueState(Eeprom.Data.CompoundAngle);
+				}
+				else
+				{
+					// Setting the value
+					val = ToValueStateClear();
+					if (val <= 270 && val >= -90)
+					{
+						Eeprom.Data.CompoundAngle = val;
+						SetCompoundAngle(val);
+						UpdateEeprom();
+					}
+				}
+				break;
+
+
 			case Standby:
 				PowerDown::EnterStandby();
 				break;
-				
+
 			case Settings:
 				if (s_isSettingsShown)
 				{
@@ -554,7 +584,7 @@ public:
 				Eeprom.StartSave();	// save all changes
 				UpdateMgr::Open();
 				break;
-				
+
 			case HaveMouse:
 				Lcd.DisablePip1();
 				break;
@@ -638,7 +668,7 @@ protected:
 		s_state = AS_Value;
 		return val;
 	}
-	
+
 	static double ToValueStateClear() NO_INLINE_ATTR
 	{
 		double val = ToValueState();
@@ -706,13 +736,28 @@ SetNull:
 	{
 		Lcd.SelectImage(&LatheMain, &LatheMain_Areas.DiameterRadius, &DiameterRadiusBtn, Eeprom.Data.fLatheRadius);
 	}
-	
+
+	static void ShowCompoundEnable()
+	{
+		Lcd.SelectImage(&LatheMain, &LatheMain_Areas.CompoundEnable, &OnOffBtn, Eeprom.Data.fCompoundFactor);
+	}
+
 	static void ShowMillLathe()
 	{
 		if (Eeprom.Data.fIsLathe)
 			Lcd.EnablePip2(&LatheMain, 0, LatheMainTop);
 		else
 			Lcd.DisablePip2();
+	}
+
+	//*********************************************************************
+	// Helper functions - Lathe screen
+	//*********************************************************************
+protected:
+	static void SetCompoundAngle(double angle)
+	{
+		ToolLib::ShowCompoundAngle(angle);
+		AxisDisplay::SetCompoundAngle(angle);
 	}
 
 	//*********************************************************************
@@ -740,26 +785,26 @@ protected:
 			s_SettingDisplay.PrintDbl("%+6.1f", val, pArea[AREA_Correction]);
 		}
 	}
-	
+
 	static void ShowLatheSettings()
 	{
 		const Area *pArea = &LatheSettingsScreen_Areas.Xassign;
-		
+
 		for (int i = 0; i < AxisPosCount; i++)
 			Lcd.SelectImage(&LatheSettingsScreen, &pArea[i], &LatheAssignments, Eeprom.Data.LatheAssign[i]);
 
 		ShowAxisInfo(&LatheSettingsScreen, &LatheSettingsScreen_Areas.Xresolution);
 	}
-	
+
 	static void ShowMillSettings()
 	{
 		const Area *pArea = &SettingsScreen_Areas.Xdisable;
-		
+
 		for (int i = 0; i < AxisPosCount; i++)
 			SettingsCheckBox(pArea[i], g_arAxisInfo[i].Disable);
 
 		ShowAxisInfo(&SettingsScreen, &SettingsScreen_Areas.Xresolution);
-		
+
 		SettingsCheckBox(SettingsScreen_Areas.HighlightXY, Eeprom.Data.fHighlightOffset);
 		SettingsCheckBox(SettingsScreen_Areas.OffsetZ, Eeprom.Data.fToolLenAffectsZ);
 		SettingsCheckBox(SettingsScreen_Areas.CncCoordinates, Eeprom.Data.fCncCoordinates);
@@ -772,11 +817,12 @@ protected:
 		ShowMillSettings();
 		ShowLatheSettings();
 	}
-	
+
 	static void ApplySettings()
 	{
 		AxisDisplay::AssignDisplays();
 		ShowMillLathe();
+		SetCompoundAngle(Eeprom.Data.CompoundAngle);
 	}
 
 	//*********************************************************************
@@ -801,10 +847,10 @@ protected:
 		{MainScreen_Areas.Mem3, MemColorOdd},
 		{MainScreen_Areas.Mem4, MemColorEven},
 	};
-	inline static NumberLine s_CalcDisplay{MainScreen, MainScreen_Areas.CalcDisplay, 
+	inline static NumberLine s_CalcDisplay{MainScreen, MainScreen_Areas.CalcDisplay,
 		FONT_Calculator, ScreenForeColor, CalcBackColor};
-	inline static TextLine	s_CalcText{MainScreen, MainScreen_Areas.CalcText, 
+	inline static TextLine	s_CalcText{MainScreen, MainScreen_Areas.CalcText,
 		FONT_CalcSmall, ScreenForeColor, CalcBackColor};
-	inline static NumberLineBlankZ s_SettingDisplay{SettingsScreen, SettingsScreen_Areas.MaxRpm, 
+	inline static NumberLineBlankZ s_SettingDisplay{SettingsScreen, SettingsScreen_Areas.MaxRpm,
 		FONT_SettingsFont, SettingForeColor, SettingBackColor};
 };
