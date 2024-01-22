@@ -981,9 +981,11 @@
     AngleTextTop = (CompoundSize - AngleFont_Height) / 2;
     AngleTextLeft = AngleDiagramLeft + CompoundSize + KeySpace;
     AngleButtonTop = (CompoundSize - BtnHeight) / 2;
-    LatheButtonTop = LatheSpeedTop + SpCellHeight + AngleButtonTop;
+    LatheButtonTop = LatheSpeedTop + SpCellHeight + AngleButtonTop + 1;
     SpeedTableLeft = AngleBoxLeft + AngleBoxWidth + KeySpace;
   </Set>
+  <Set ShowValue="AngleDiagramX">AngleBoxLeft + AngleAreaLeft + AngleDiagramLeft + CompoundSize / 2</Set>
+  <Set ShowValue="AngleDiagramY">LatheSpeedTop + AngleDiagramTop + CompoundSize / 2</Set>
   <Canvas Name="LatheMain" Width="KeypadLeft" Height="LatheInfoHeight" ColorDepth="Color16bpp" Fill="ScreenBackColor">
     <Ref RefName="LatheToolLabels" Left="KeySpace">
       <Set>
@@ -1032,47 +1034,49 @@
     </Ref>
     <Rectangle Top ="LatheSpeedTop" Left="AngleBoxLeft" Width="AngleBoxWidth" Height="AngleBoxHeight">
       <TextBlock Name="AngleHeader" Top="1" Font="CalcSmall">Compound Angle</TextBlock>
-      <Rectangle Name="AngleBox" Left="0" Top="AngleDiagramTop" Width="AngleBoxWidth" Height="CompoundSize" Stroke="Black" StrokeThickness="1">
-        <Ref RefName="OnOff" Top="AngleButtonTop" Left="KeySpace">
-          <Set>
-            Button.HotSpot = CompoundEnable;
-            Button.Area = CompoundEnable;
-          </Set>
-        </Ref>
-        <Rectangle Area="AngleDisplay" Left="AngleAreaLeft" Height="CompoundSize" Width="AngleAreaWidth">
-          <Ref RefName="AngleText" Left="AngleTextLeft" Top="AngleTextTop"/>
-          <Rectangle Area="CompoundAngle" Left="AngleTextLeft" Top="AngleTextTop" Width="AngleTextWidth - 1" Height="AngleFont_Height"/>
-          <Set>
-            CircleSize = 40;
-            CirclePos = (CompoundSize - CircleSize) / 2;
-            BoxHeight = CircleSize - 10;
-            BoxTop = (CompoundSize - BoxHeight) / 2;
-            BoxLeft = 0;
-            BoxWidth = 66;
-            AxleLength = 4;
-            AxleWidth = 5;
-            AxleLeft = BoxWidth + BoxLeft;
-            AxleTop = (CompoundSize - AxleWidth) / 2;
-            CrankLength = 17;
-            CrankWidth = 4;
-            CrankLeft = AxleLeft + AxleLength;
-            CrankTop = AxleTop + AxleWidth - CrankLength;
-            HandleLength = 10;
-            HandleWidth = 5;
-            HandleLeft = CrankLeft + CrankWidth;
-            HandleTop = CrankTop;
-            PostSize = 22;
-            PostTop = (CompoundSize - PostSize) / 2;
-            PostLeft = BoxLeft + (BoxHeight - PostSize) / 2;
-          </Set>
-          <Rectangle Left="AngleDiagramLeft" Top="0" Width="CompoundSize" Height="CompoundSize" Stroke="Black" StrokeThickness="0">
-            <Ellipse Top="CirclePos" Left="CirclePos" Height="CircleSize" Width="CircleSize" Stroke="Black" StrokeThickness="0" Fill="0xFF707070"/>
-            <Rectangle Left="BoxLeft" Top="BoxTop" Width="BoxWidth" Height="BoxHeight" Stroke="Black" StrokeThickness="0" Fill="0xFF909090"/>
-            <Rectangle Left="PostLeft" Top="PostTop" Width="PostSize" Height="PostSize" Fill="Black"/>
+      <Rectangle Area="Compound" Left="0" Top="AngleDiagramTop" Width="AngleBoxWidth" Height="CompoundSize + 2" Stroke="Black" StrokeThickness="1">
+        <Rectangle Left="0" Top="1" Width="AngleBoxWidth" Height="CompoundSize">
+          <Ref RefName="OnOff" Top="AngleButtonTop" Left="KeySpace">
+            <Set>
+              Button.HotSpot = CompoundEnable;
+              Button.Area = CompoundEnable;
+            </Set>
+          </Ref>
+          <Rectangle Area="AngleDisplay" Left="AngleAreaLeft" Height="CompoundSize" Width="AngleAreaWidth - 1">
+            <Ref RefName="AngleText" Left="AngleTextLeft" Top="AngleTextTop"/>
+            <Rectangle Area="CompoundAngle" Left="AngleTextLeft" Top="AngleTextTop" Width="AngleTextWidth - 1" Height="AngleFont_Height"/>
+            <Set>
+              CircleSize = 40;
+              CirclePos = (CompoundSize - CircleSize) / 2;
+              BoxHeight = CircleSize - 10;
+              BoxTop = (CompoundSize - BoxHeight) / 2;
+              BoxLeft = 0;
+              BoxWidth = 66;
+              AxleLength = 4;
+              AxleWidth = 5;
+              AxleLeft = BoxWidth + BoxLeft;
+              AxleTop = (CompoundSize - AxleWidth) / 2;
+              CrankLength = 17;
+              CrankWidth = 4;
+              CrankLeft = AxleLeft + AxleLength;
+              CrankTop = AxleTop + AxleWidth - CrankLength;
+              HandleLength = 10;
+              HandleWidth = 5;
+              HandleLeft = CrankLeft + CrankWidth;
+              HandleTop = CrankTop;
+              PostSize = 22;
+              PostTop = (CompoundSize - PostSize) / 2;
+              PostLeft = BoxLeft + (BoxHeight - PostSize) / 2;
+            </Set>
+            <Rectangle Area="AngleDiagram" Left="AngleDiagramLeft" Top="0" Width="CompoundSize" Height="CompoundSize" Stroke="Black" StrokeThickness="0">
+              <Ellipse Top="CirclePos" Left="CirclePos" Height="CircleSize" Width="CircleSize" Stroke="Black" StrokeThickness="0" Fill="0xFF707070"/>
+              <Rectangle Left="BoxLeft" Top="BoxTop" Width="BoxWidth" Height="BoxHeight" Stroke="Black" StrokeThickness="0" Fill="0xFF909090"/>
+              <Rectangle Left="PostLeft" Top="PostTop" Width="PostSize" Height="PostSize" Fill="Black"/>
 
-            <Rectangle Left="AxleLeft" Top="AxleTop" Width="AxleLength" Height="AxleWidth" Fill="Black"/>
-            <Rectangle Left="CrankLeft" Top="CrankTop" Width="CrankWidth" Height="CrankLength" Fill="Black"/>
-            <Rectangle Left="HandleLeft" Top="HandleTop" Width="HandleLength" Height="HandleWidth" Fill="Black"/>
+              <Rectangle Left="AxleLeft" Top="AxleTop" Width="AxleLength" Height="AxleWidth" Fill="Black"/>
+              <Rectangle Left="CrankLeft" Top="CrankTop" Width="CrankWidth" Height="CrankLength" Fill="Black"/>
+              <Rectangle Left="HandleLeft" Top="HandleTop" Width="HandleLength" Height="HandleWidth" Fill="Black"/>
+            </Rectangle>
           </Rectangle>
         </Rectangle>
       </Rectangle>
@@ -1674,6 +1678,14 @@
         </Column>
       </Row>
     </Grid>
+    <Rectangle HotSpot="LatheShowT" Group="SettingToggle" Top="Option3Top" Left="KeySpace" Height="BtnHeight" Width="OptionWidth" Stroke="SettingForeColor" StrokeThickness="1">
+      <TextBlock Left="KeySpace" Font="SettingsLabelFont" Foreground="SettingForeColor">Always show T instead of Z':</TextBlock>
+      <Rectangle Area="ShowT" Top="(BtnHeight - CheckboxSize) / 2" Left="SetItemRight - CheckboxSize" Height="CheckboxSize" Width="CheckboxSize"/>
+    </Rectangle>
+    <Rectangle HotSpot="LatheMaxRpm" Top="Option4Top" Left="KeySpace" Height="BtnHeight" Width="OptionWidth" Stroke="SettingForeColor" StrokeThickness="1">
+      <TextBlock Left="KeySpace" Font="SettingsLabelFont" Foreground="SettingForeColor">Max machine RPM:</TextBlock>
+      <Rectangle Area="LatheMaxRpm" Top="10" Left="SetItemRight - RpmTextWidth" Height="SettingsFont_Height" Width="RpmTextWidth"/>
+    </Rectangle>
     <Rectangle HotSpot="TouchCal" Group="LatheSettings" Top="Option2Top" Left="OptionButtonLeft" Height="BtnHeight" Width="OptionButtonWidth" RadiusX="8" RadiusY="8" Fill="SettingForeColor">
       <TextBlock Font="BtnSmallFont" FontSize="25" Foreground="SettingBackColor">Touch Calibration</TextBlock>
     </Rectangle>

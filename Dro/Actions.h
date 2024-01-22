@@ -88,7 +88,6 @@ public:
 		ShowAbsInc();
 		ShowInchMetric();
 		ShowDiameterRadius();
-		ShowCompoundEnable();
 		Tools.Init();
 		Files.Init();
 	}
@@ -124,6 +123,7 @@ public:
 		AxisDisplay	*pDisplay;
 		char		*pStr;
 		bool		*pToggle;
+		ushort		*pUs;
 
 		pSpot = Lcd.ScreenTestHit(x, y);
 		if (pSpot == NULL)
@@ -457,6 +457,10 @@ public:
 				pToggle = &Eeprom.Data.fCncCoordinates;
 				break;
 
+			case LatheShowT:
+				pToggle = &Eeprom.Data.fLatheShowT;
+				break;
+
 			default:	// OffsetZ
 				pToggle = &Eeprom.Data.fToolLenAffectsZ;
 				break;
@@ -558,19 +562,26 @@ public:
 				break;
 
 			case MaxRpm:
+				pUs = &Eeprom.Data.MaxRpm;
+				goto SetRpm;
+				
+			case LatheMaxRpm:
+				pUs = &Eeprom.Data.LatheMaxRpm;
+SetRpm:
 				if (s_state == AS_Empty)
 				{
 					// Just reading the value
-					ToValueState(Eeprom.Data.MaxRpm);
+					ToValueState(*pUs);
 				}
 				else
 				{
 					// Setting the value
 					val = ToValueStateClear();
-					if (val < 60000 && val >= 100)
+					if (val <= 60000 && val >= 100)
 					{
-						Eeprom.Data.MaxRpm = lround(val);
+						*pUs = lround(val);
 						ShowSettingsInfo();
+						Tools.ShowToolInfo();
 					}
 				}
 				break;
@@ -740,6 +751,9 @@ SetNull:
 	static void ShowCompoundEnable()
 	{
 		Lcd.SelectImage(&LatheMain, &LatheMain_Areas.CompoundEnable, &OnOffBtn, Eeprom.Data.fCompoundFactor);
+
+		// See if we're sharing third display between Z' and T
+		AxisDisplay::ShareT();
 	}
 
 	static void ShowMillLathe()
@@ -773,11 +787,11 @@ protected:
 	{
 		double	val;
 
+		s_SettingDisplay.SetCanvas(pCanvas);
 		for (int i = 0; i < AxisPosCount; i++, pArea += AREA_Count)
 		{
 			Lcd.SelectImage(pCanvas, &pArea[AREA_Invert], &CheckBox, g_arAxisInfo[i].Direction);
 
-			s_SettingDisplay.SetCanvas(pCanvas);
 			val = AxisDisplay::AxisPositions[i]->GetResolution();
 			s_SettingDisplay.PrintDbl("%.1f", val, pArea[AREA_Resolution]);
 
@@ -794,6 +808,10 @@ protected:
 			Lcd.SelectImage(&LatheSettingsScreen, &pArea[i], &LatheAssignments, Eeprom.Data.LatheAssign[i]);
 
 		ShowAxisInfo(&LatheSettingsScreen, &LatheSettingsScreen_Areas.Xresolution);
+		
+		Lcd.SelectImage(&LatheSettingsScreen, &LatheSettingsScreen_Areas.ShowT, &CheckBox, Eeprom.Data.fLatheShowT);
+
+		s_SettingDisplay.PrintUint("%5i", Eeprom.Data.LatheMaxRpm, LatheSettingsScreen_Areas.LatheMaxRpm);
 	}
 
 	static void ShowMillSettings()
@@ -823,6 +841,7 @@ protected:
 		AxisDisplay::AssignDisplays();
 		ShowMillLathe();
 		SetCompoundAngle(Eeprom.Data.CompoundAngle);
+		ShowCompoundEnable();
 	}
 
 	//*********************************************************************

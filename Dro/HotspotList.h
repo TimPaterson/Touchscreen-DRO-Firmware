@@ -57,6 +57,7 @@ enum ActionHotspots
 	HighlightXY,
 	OffsetZ,
 	CncCoordinates,
+	LatheShowT,
 
 	Key_mult = CH_Multiply,
 	Key_divide = CH_Divide,

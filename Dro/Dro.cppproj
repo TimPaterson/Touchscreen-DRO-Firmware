@@ -282,6 +282,9 @@
     <Compile Include="Fonts\Fonts.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="GraphicsLib\Drawing.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="GraphicsLib\EditLine.h">
       <SubType>compile</SubType>
     </Compile>

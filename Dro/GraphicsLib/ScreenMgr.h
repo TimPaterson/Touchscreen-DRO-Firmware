@@ -16,6 +16,7 @@ struct PipInfo
 	TouchCanvas	*pImage;
 	ushort		x;
 	ushort		y;
+	bool		isModal;
 
 	bool IsEnabled()	{ return pImage != NULL; }
 };
@@ -54,7 +55,7 @@ public:
 		s_pip1.pImage = pCanvas;
 		s_pip1.x = x;
 		s_pip1.y = y;
-		s_fPip1Modal = fModal;
+		s_pip1.isModal = fModal;
 		val = ReadReg(MPWCTR) & ~MPWCTR_ConfigurePip_Mask;
 		WriteData(val | (MPWCTR_ConfigurePip1 | MPWCTR_Pip1Enable));
 		WriteRegXY(PWDULX0, x, y);
@@ -65,7 +66,7 @@ public:
 
 	static void SetPip1Modal(bool fModal)
 	{
-		s_fPip1Modal = fModal;
+		s_pip1.isModal = fModal;
 	}
 
 	static void DisablePip1()
@@ -81,7 +82,7 @@ public:
 		s_pip2.pImage = pCanvas;
 		s_pip2.x = x;
 		s_pip2.y = y;
-		s_fPip2Modal = fModal;
+		s_pip2.isModal = fModal;
 		val = ReadReg(MPWCTR) & ~MPWCTR_ConfigurePip_Mask;
 		WriteData(val | (MPWCTR_ConfigurePip2 | MPWCTR_Pip2Enable));
 		WriteRegXY(PWDULX0, x, y);
@@ -92,7 +93,7 @@ public:
 
 	static void SetPip2Modal(bool fModal)
 	{
-		s_fPip2Modal = fModal;
+		s_pip2.isModal = fModal;
 	}
 
 	static void DisablePip2()
@@ -182,7 +183,7 @@ public:
 			pSpot = s_pip1.pImage->TestHit(x - s_pip1.x, y - s_pip1.y);
 			if (pSpot != NOT_ON_CANVAS)
 				return pSpot;
-			if (s_fPip1Modal)
+			if (s_pip1.isModal)
 				return NULL;
 		}
 
@@ -192,7 +193,7 @@ public:
 			pSpot = s_pip2.pImage->TestHit(x - s_pip2.x, y - s_pip2.y);
 			if (pSpot != NOT_ON_CANVAS)
 				return pSpot;
-			if (s_fPip2Modal)
+			if (s_pip2.isModal)
 				return NULL;
 		}
 
@@ -296,6 +297,4 @@ protected:
 	inline static TouchCanvas	*s_pMainImage;
 	inline static PipInfo		s_pip1;
 	inline static PipInfo		s_pip2;
-	inline static bool			s_fPip1Modal;
-	inline static bool			s_fPip2Modal;
 };

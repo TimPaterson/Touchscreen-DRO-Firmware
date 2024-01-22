@@ -54,7 +54,7 @@ public:
 public:
 	bool IsVisible()				{ return m_pAxisPos != NULL; }
 	void SetTextColor(ulong color)	{ m_textColor = color; }
-
+		
 public:
 	void UpdateDisplay()
 	{
@@ -75,7 +75,7 @@ public:
 				else
 				{
 					val = Eeprom.Data.Sfm / (val * (2 * M_PI / (Eeprom.Data.fIsMetric ? 1000 : 1000 / 25.4)));
-					val = std::min(val, (double)Eeprom.Data.MaxRpm);
+					val = std::min(val, (double)Eeprom.Data.LatheMaxRpm);
 					ToolLib::ShowLatheRpm((uint)val);
 				}
 			}
@@ -124,45 +124,55 @@ public:
 		int			curDisplay = 0;
 		AxisPos*	pSense;
 		
+		s_isTshared = false;
 		if (Eeprom.Data.fIsLathe)
 		{
 			// For lathe, sensor can be assigned any axis. We will
 			// display them in order: X, Z, Z', T (choosing top 3).
-			s_latheXpos = NULL;
-			s_latheZpos = NULL;
+			s_latheXpos = FindAssignment(LATHE_X);
+			s_latheZpos = FindAssignment(LATHE_Z);
+			s_latheZprimePos = FindAssignment(LATHE_Zprime);
+			s_latheTpos = FindAssignment(LATHE_T);
 			
-			if ((pSense = FindAssignment(LATHE_X)) != NULL)
-			{
-				// Cross slide
-				s_latheXpos = pSense;
-				Axes[curDisplay++]->AssignDisplay(pSense, LABEL_X, true);
-			}
+			// Cross slide
+			if (s_latheXpos != NULL)
+				Axes[curDisplay++]->AssignDisplay(s_latheXpos, LABEL_X, true);
 			
-			if ((pSense = FindAssignment(LATHE_Z)) != NULL)
-			{
-				// Carriage
-				s_latheZpos = pSense;
-				Axes[curDisplay++]->AssignDisplay(pSense, LABEL_Z);
-			}
+			// Carriage
+			if (s_latheZpos != NULL)
+				Axes[curDisplay++]->AssignDisplay(s_latheZpos, LABEL_Z);
 			
-			if ((pSense = FindAssignment(LATHE_Zprime)) != NULL)
+			// Compound
+			if (s_latheZprimePos != NULL)
 			{
-				// Compound
-				Axes[curDisplay++]->AssignDisplay(pSense, LABEL_Zprime);
-				if (Eeprom.Data.fCompoundFactor)
-				{
-					if (s_latheXpos != NULL)
-						s_latheXpos->SetSensor(pSense);
+				Axes[curDisplay++]->AssignDisplay(s_latheZprimePos, LABEL_Zprime);
+				
+				if (s_latheXpos != NULL)
+					s_latheXpos->SetSensor(s_latheZprimePos);
 						
-					if (s_latheZpos != NULL)
-						s_latheZpos->SetSensor(pSense);
-				}
+				if (s_latheZpos != NULL)
+					s_latheZpos->SetSensor(s_latheZprimePos);
 			}
 			
-			if (curDisplay < AxisDisplayCount && (pSense = FindAssignment(LATHE_T)) != NULL)
+			// Tailstock
+			if (s_latheTpos != NULL)
 			{
-				// Tailstock
-				Axes[curDisplay++]->AssignDisplay(pSense, LABEL_T);
+				if (curDisplay == AxisDisplayCount)
+				{
+					// Not enough displays for everybody
+					if (Eeprom.Data.fLatheShowT)
+					{
+						curDisplay--;	// take over display Z' display
+						goto AssignT;
+					}
+					else
+						s_isTshared = true;
+				}
+				else
+				{
+			AssignT:
+					Axes[curDisplay++]->AssignDisplay(s_latheTpos, LABEL_T);
+				}
 			}
 		}
 		else
@@ -192,12 +202,8 @@ public:
 		for (; curDisplay < AxisDisplayCount; curDisplay++)
 			Axes[curDisplay]->AssignDisplay(NULL, 0);
 			
-		for (curDisplay = 0; curDisplay < AxisDisplayCount; curDisplay++)
-		{
-			pSense = Axes[curDisplay]->m_pAxisPos;
-			if (pSense != NULL)
-				pSense->SetRounding();
-		}
+		for (int i = 0; i < AxisPosCount; i++)
+			AxisPositions[i]->SetRounding();
 	}
 	
 	static void SetCompoundAngle(double angle)
@@ -220,6 +226,17 @@ public:
 						
 		if (s_latheZpos != NULL)
 			s_latheZpos->SetFactor(cosine);
+	}
+	
+	static void ShareT()
+	{
+		if (s_isTshared)
+		{
+			if (Eeprom.Data.fCompoundFactor)
+				Zdisplay.AssignDisplay(s_latheTpos, LABEL_T);
+			else
+				Zdisplay.AssignDisplay(s_latheZprimePos, LABEL_Zprime);
+		}
 	}
 
 	//*********************************************************************
@@ -288,10 +305,11 @@ protected:
 	// static (RAM) data
 	//*********************************************************************
 protected:
-	// These track which sensors are on lathe X and Z. This allows them
-	// to be affected by the compound (Z'), depending on its angle.
+	inline static bool		s_isTshared;
 	inline static AxisPos*	s_latheXpos;
 	inline static AxisPos*	s_latheZpos;
+	inline static AxisPos*	s_latheZprimePos;
+	inline static AxisPos*	s_latheTpos;
 	
 	inline static NumberLine		s_Display{MainScreen, MainScreen_Areas.Xdisplay, 
 		FONT_DigitDisplay, AxisForeColor, AxisBackColor};

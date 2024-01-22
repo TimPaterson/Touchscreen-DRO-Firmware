@@ -58,6 +58,9 @@ EepromData(double, CompoundAngle, 0)
 EepromData(bool, fIsLathe, false)
 EepromData(bool, fCompoundFactor, true)
 EepromData(bool, fLatheRadius, false)
+EepromData(bool, fLatheShowT, false)
+// 32-bit aligned here
+EepromData(ushort, LatheMaxRpm, 10000)
 
 // Undefine all the macros now
 #undef	EepromData

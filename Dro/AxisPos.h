@@ -46,9 +46,9 @@ public:
 			pos += m_pSenseQ->GetPosition() * m_qFactor;
 
 		if (IsMetric())
-			return nearbyint(pos * m_mmRounding) / m_mmRounding;
+			return round(pos * m_mmRounding) / m_mmRounding;
 		
-		return nearbyint(pos * m_inchRounding / MmPerInch) / m_inchRounding;
+		return round(pos * m_inchRounding / MmPerInch) / m_inchRounding;
 	}
 
 	long SetPosition(double pos)

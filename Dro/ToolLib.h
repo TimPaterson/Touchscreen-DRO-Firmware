@@ -13,6 +13,7 @@
 #include "EditLine.h"
 #include "KeyboardMgr.h"
 #include "FileBrowser.h"
+#include "Drawing.h"
 #include <FatFile/FatFileConst.h>
 
 #define IMPORT_HEAD_TEXT "Tool,Diameter,Length,Flutes,Description"
@@ -284,12 +285,27 @@ public:
 	{
 		if (!Eeprom.Data.fCompoundFactor)
 		{
-			s_CompoundAngle.ClearArea();
+			Lcd.FillRect(&LatheMain, &LatheMain_Areas.AngleDisplay, ScreenBackColor);
 			return;
 		}
 		
 		// Character 0x7f is the degree symbol
 		s_CompoundAngle.PrintDbl("%5.1f\x7f\n", angle);
+		
+		// Draw an image of the compound at this angle
+		s_compoundRotate.SetAngle(angle);
+		Lcd.FillRect(&LatheMain, &LatheMain_Areas.AngleDiagram, ScreenBackColor);
+		Lcd.SetDrawCanvas(&LatheMain);
+		
+		// Draw the circle underneath
+		//Lcd.WriteRegXY(ELL_A0, 41, 41);
+		Lcd.WriteRegXY(ELL_A0, CircleSize / 2, CircleSize / 2);
+		Lcd.WriteRegXY(DEHR0, AngleDiagramX, AngleDiagramY);
+		Lcd.SetForeColor(CircleColor);
+		Lcd.WriteReg(DCR1, DCR1_DrawEllipse | DCR1_FillOn | DCR1_DrawActive);
+		Lcd.WaitWhileBusy();
+		
+		s_compoundRotate.DrawList(s_arCompoundRect, _countof(s_arCompoundRect));
 	}
 	
 	//*********************************************************************
@@ -754,6 +770,44 @@ protected:
 	inline static const char s_InvalidToolFileMsg[] = "Not a valid tool library file";
 	inline static const char s_InvalidToolMsg[] = "Error in file - not all tools imported";
 	inline static const char s_CreateFolderMsg[] = "Folder not found - use Add Folder to create";
+	
+	//*********************************************************************
+	// Rectangle array for image of lathe compound
+	enum CompoundImage
+	{
+		CircleSize = 40,
+		BoxHeight = 30,
+		BoxWidth = 58,
+		BoxLeft = -36,
+		AxleLength = 4,
+		AxleWidth = 6,
+		AxleLeft = BoxWidth + BoxLeft,
+		CrankLength = 17,
+		CrankWidth = 4,
+		CrankLeft = AxleLeft + AxleLength,
+		CrankTop = AxleWidth / 2 - CrankLength - 1,
+		HandleLength = 10,
+		HandleWidth = 5,
+		HandleLeft = CrankLeft + CrankWidth,
+		PostSize = 22,
+		PostLeft = BoxLeft + (BoxHeight - PostSize) / 2,
+		
+		BoxColor = 0x909090,
+		AxleColor = 0,
+		CrankColor = 0,
+		HandleColor = 0,
+		PostColor = 0,
+		CircleColor = 0x707070,
+	};
+	
+	inline static const Rectangle s_arCompoundRect[] =
+	{
+		{ BoxLeft, -BoxHeight/2, AxleLeft - 1, BoxHeight/2, BoxColor },
+		{ AxleLeft, -AxleWidth/2, CrankLeft - 1, AxleWidth/2, AxleColor },
+		{ CrankLeft, CrankTop, HandleLeft - 1, AxleWidth/2, CrankColor },
+		{ HandleLeft, CrankTop, HandleLeft + HandleLength - 1, CrankTop + HandleWidth - 1, HandleColor },
+		{ PostLeft, -PostSize/2, PostLeft + PostSize - 1, PostSize/2, PostColor },
+	};
 
 	//*********************************************************************
 	// instance (RAM) data
@@ -774,6 +828,7 @@ protected:
 	//*********************************************************************
 protected:
 	inline static ToolLibInfo	s_bufTool;
+	inline static RotateRectangle	s_compoundRotate {AngleDiagramX, AngleDiagramY};
 
 	inline static ToolDisplay	s_textMain {MainScreen, MainScreen_Areas.ToolNumber,
 		ScreenForeColor, ScreenBackColor};
