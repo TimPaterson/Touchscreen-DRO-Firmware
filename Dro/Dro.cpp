@@ -308,6 +308,10 @@ int main(void)
 
 		wdt_reset();
 
+		// Process EEPROM save if in progress
+		if (!Eeprom.Process())
+			PowerDown::Process();
+
 		// Check status of SD card
 		if (!GetSdCd() == fSdOut && !FileOp.IsBusy())
 		{
@@ -323,9 +327,6 @@ int main(void)
 				DEBUG_PRINT("SD card mounting...");
 			}
 		}
-
-		// Process EEPROM save if in progress
-		Eeprom.Process();
 
 		if (timeCur.ReadClock() != timeLast)
 		{

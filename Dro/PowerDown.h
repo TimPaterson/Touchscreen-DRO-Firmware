@@ -31,9 +31,41 @@ class PowerDown
 
 	#define pSaveStart	((PowerDownSave *)NVMCTRL_RWW_EEPROM_ADDR)
 	#define pSaveEnd	(&pSaveStart[SaveRows * NVMCTRL_ROW_PAGES])
+	
+	// Types
+	enum PowerLossState
+	{
+		PS_None,
+		PS_Saving,
+		PS_Erasing,
+	};
 
 public:
 	inline static bool IsStandby()		{ return s_isStandby; }
+		
+public:
+	static void Process()
+	{
+		// Process is only called when the EEPROM is not busy, so it's
+		// ready to move to the next state.
+		switch (s_state)
+		{
+		default: // PS_None
+			return;
+				
+		case PS_Saving:
+			NextSaveBlock();
+			s_state = PS_Erasing;
+			break;
+				
+		case PS_Erasing:
+			// All done, ready to enable NMI
+			s_state = PS_None;
+			EIC->NMICTRL.reg = EIC_NMICTRL_NMISENSE_FALL | EIC_NMICTRL_NMIFILTEN;
+			DEBUG_PRINT("continuing\n");
+			break;
+		}
+	}
 		
 	static void EnterStandby()
 	{
@@ -73,12 +105,13 @@ public:
 		SaveAxis(Zpos, save.arZaxisPos);
 		SaveAxis(Qpos, save.arQaxisPos);
 		Nvm::WriteRwweePageReady();
+		s_state = PS_Saving;
 	}
 
 	static RtcTime Restore()
 	{
 		PowerDownSave	*pSaveCur;
-		PowerDownSave	*pSave = 0;
+		PowerDownSave	*pSave = NULL;
 		RtcTime			time = 0;
 
 		// Find the last save block
@@ -121,10 +154,11 @@ public:
 		if (s_pSaveNext == NULL)
 		{
 			// No erased locations, start at next row
-			pSave = (PowerDownSave *)(((ulong)pSave + FlashRowSize - 1) & ~(FlashRowSize - 1));
 			s_pSaveNext = pSave;
-			Nvm::EraseRwweeRowReady(pSave);
+			NextSaveBlock();
 		}
+			
+		s_state = PS_Erasing;	// will enable NMI
 
 		return time;
 	}
@@ -135,6 +169,7 @@ public:
 		Nvm::EraseRwweeRow(ADDOFFSET(pSaveStart, FlashRowSize));
 	}
 
+	//*********************************************************************
 protected:
 	static void SaveAxis(AxisPos &axis, long *arPos)
 	{
@@ -150,7 +185,21 @@ protected:
 		axis.SetOrigin(0, arPos[0]);
 		axis.SetOrigin(1, arPos[1]);
 	}
+	
+	static void NextSaveBlock()
+	{
+		if (s_pSaveNext == NULL || ++s_pSaveNext >= pSaveEnd)
+			s_pSaveNext = pSaveStart;
+			
+		if (s_pSaveNext->rtcTime != Unprogrammed)
+			Nvm::EraseRwweeRowReady(s_pSaveNext);
+	}
 
+	//*********************************************************************
+	// static (RAM) data
+	//*********************************************************************
+protected:
+	inline static bool			s_isStandby;
+	inline static byte			s_state;		// PowerLossState
 	inline static PowerDownSave	*s_pSaveNext;
-	inline static byte			s_isStandby;
 };

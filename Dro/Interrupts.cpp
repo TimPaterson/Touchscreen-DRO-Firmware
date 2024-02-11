@@ -24,26 +24,11 @@ DEFINE_I2C_ISR(SERCOM1, CapTouch)
 
 void NonMaskableInt_Handler()
 {
-	//Console.WriteStringNoBuf("Shutting down\r\n");
-	// Disable all I/O pins. Make them all inputs and
-	// disable mux, pull-up, input buffer
-	DirWritePinsA(0);
-	SetPortConfigA(0, 0x3FFFFFFF);	// don't touch debug port pins
-	DirWritePinsB(0);
-	SetPortConfigB(0, ALL_PORT_PINS);
-
-	// Turn off some clocks to save power
-	PM->APBCMASK.reg = 0;	// all peripherals off
-#ifdef DEBUG
-	PM->APBBMASK.reg = PM_APBBMASK_NVMCTRL | PM_APBBMASK_DSU | PM_APBBMASK_PORT;
-#else
-	PM->APBBMASK.reg = PM_APBBMASK_NVMCTRL;
-#endif
-	PM->AHBMASK.reg = PM_AHBMASK_NVMCTRL | PM_APBBMASK_DSU | PM_AHBMASK_HPB2 | 
-		PM_AHBMASK_HPB1 | PM_AHBMASK_HPB0;
-
+	EIC->NMIFLAG.reg = EIC_NMIFLAG_NMI;
+	// disable NMI until we've done with EEPROM
+	EIC->NMICTRL.reg = EIC_NMICTRL_NMISENSE_NONE;
+	
 	PowerDown::Save();
-	while(1);
 }
 
 //****************************************************************************
