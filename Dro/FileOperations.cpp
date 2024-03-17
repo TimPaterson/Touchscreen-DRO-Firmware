@@ -48,58 +48,105 @@ void FileOperations::Process()
 			// This state used by WriteFileToFlash
 			OP_STATE(flash, open)
 				flash.cbTotal = GetSize(m_hFile);
-				goto FlashStartRead;
+				goto FlashStartReadErase;
 			END_STATE
 
 			// This state used by WriteToFlash
 			OP_STATE(flash, seek)
+FlashStartReadErase:
+				flash.erased = Lcd.SerialMemEraseStart(flash.addr, SerialFlashBlockSize, SerialFlashPort);
+				goto FlashStartRead;
+			END_STATE
+
+			OP_STATE(flash, retry)
+				// We've just completed a seek back in the file
+				// Erase of flash sector (4K) in progress
 FlashStartRead:
 				StartRead(m_hFile, g_FileBuf, FAT_SECT_SIZE);
-				flash.iBuf = 0;
 				TO_STATE(flash, read);
-				flash.erased = RA8876::SerialMemEraseStart(flash.addr, SerialFlashBlockSize, 1);
 			END_STATE
 
 			OP_STATE(flash, read)
 				// status is no. of bytes read
-				flash.cb = status;
+				flash.cbBuf = status;
 				flash.oBuf = 0;
-				TO_STATE(flash, wait);
+				TO_STATE(flash, write);
+				goto FlashCheckReady;
 			END_STATE
 
-			OP_STATE(flash, wait)
-				if (RA8876::IsSerialMemBusy())
-					EXIT_STATE
-				if (flash.cb == 0 || flash.cbTotal <= 0)
+			OP_STATE(flash, write)
+FlashCheckReady:
+				if (Lcd.IsSerialMemBusy())	// might be waiting for erase
+					EXIT_STATE;
+FlashWriteReady:
+				flash.cbFlashed = Lcd.SerialMemWriteStart(flash.addr, flash.cbBuf, &g_FileBuf[0][flash.oBuf], SerialFlashPort);
+				TO_STATE(flash, verify);
+			END_STATE
+
+			OP_STATE(flash, verify)
+				if (Lcd.IsSerialMemBusy())
+					EXIT_STATE;
+
+				// Read back flash and verify
+				Lcd.SerialMemRead(flash.addr, flash.cbFlashed, g_FileBuf[1], SerialFlashPort);
+				uint	bRead, bDif;
+				uint	cntErr = 0;
+				byte	*pRead = g_FileBuf[1];
+				byte	*pWritten = &g_FileBuf[0][flash.oBuf];
+				for (cb = flash.cbFlashed; cb > 0; cb--)
 				{
-					// UNDONE: flash.cb == 0 means we didn't read expected data
+					bRead = *pRead++;
+					bDif = *pWritten++ ^ bRead;
+					if (bDif != 0)
+					{
+						cntErr++;
+						// if all error bits are 1, then they are still "erased" and we can just
+						// try again. Otherwise, we need to back up and erase again.
+						if ((bDif & bRead) != bDif)
+						{
+							DEBUG_PRINT("Serial flash error at %lX, retrying sector.\n", flash.addr);
+							long newAddr = flash.addr & ~(SerialFlashSectorSize - 1);
+							Lcd.SerialMemEraseStart(newAddr, SerialFlashSectorSize, SerialFlashPort);
+							long dif = newAddr - flash.addr;	// negative
+							flash.erased -= dif;
+							flash.cbTotal -= dif;
+							flash.addr = newAddr;
+							StartSeek(m_hFile, dif - flash.cbBuf, FAT_SEEK_CUR);
+							TO_STATE(flash, retry);
+							EXIT_STATE;
+						}
+					}
+				}
+
+				if (cntErr != 0)
+				{
+					DEBUG_PRINT("Serial flash error at %lX -- retrying page.\n", flash.addr);
+					goto FlashWriteReady;
+				}
+				cb = flash.cbFlashed;
+				flash.cbTotal -= cb;
+				flash.addr += cb;
+				flash.oBuf += cb;
+				flash.cbBuf -= cb;
+				flash.erased -= cb;
+				UpdateMgr::UpdateProgress(cb);
+
+				if (flash.cbTotal <= 0)
+				{
+					// All done
 					uint hFile = m_hFile;
 					OpDone();
 					UpdateMgr::FlashWriteComplete(hFile);
+					EXIT_STATE;
 				}
-				else
-				{
-					if (flash.erased == 0)
-					{
-						flash.erased = RA8876::SerialMemEraseStart(flash.addr, SerialFlashBlockSize, 1);
-						EXIT_STATE
-					}
-					// Write next page
-					cb = RA8876::SerialMemWriteStart(flash.addr, flash.cb, &g_FileBuf[flash.iBuf][flash.oBuf], 1);
-					flash.cbTotal -= cb;
-					flash.addr += cb;
-					flash.oBuf += cb;
-					flash.cb -= cb;
-					flash.erased -= cb;
-					UpdateMgr::UpdateProgress(cb);
-					if (flash.cb == 0)
-					{
-						// Read next buffer
-						flash.iBuf ^= 1;
-						StartRead(m_hFile, &g_FileBuf[flash.iBuf], FAT_SECT_SIZE);
-						TO_STATE(flash, read);
-					}
-				}
+
+				if (flash.erased == 0)
+					goto FlashStartReadErase;	// overlap read and erase
+
+				if (flash.cbBuf == 0)
+					goto FlashStartRead;
+
+				goto FlashWriteReady;
 			END_STATE
 
 			//*************************************************************
@@ -216,7 +263,7 @@ ImportClose:
 					pBuf = (char *)g_FileBuf[0] + cb;
 					Export.iBuf = 0;
 				}
-				do 
+				do
 				{
 					pBufRes = Tools.ExportTool(pBuf, Export.iTool++);
 					if (pBufRes == NULL)
@@ -225,7 +272,7 @@ ImportClose:
 						cb = pBuf - (char *)g_FileBuf[Export.iBuf];
 						StartWrite(m_hFile, g_FileBuf[Export.iBuf], cb);
 						TO_STATE(Export, flush);
-						EXIT_STATE
+						EXIT_STATE;
 					}
 					pBuf = pBufRes;
 				} while (pBuf < (char *)g_FileBuf[Export.iBuf + 1]);
@@ -307,7 +354,7 @@ EndEnum:
 				}
 				else
 					folder.pInfo->Type = INFO_File;
-					
+
 				// Add to list at end of buffer
 				*pList-- = offset;
 				folder.cnt++;

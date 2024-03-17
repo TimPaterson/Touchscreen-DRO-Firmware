@@ -13,6 +13,7 @@
 //****************************************************************************
 // Serial memory constants. Must be C-compatible.
 
+static const int SerialFlashPort = 1;
 static const int SerialFlashPageSize = 256;
 static const int SerialFlashSectorSize = 0x1000;
 static const int SerialFlashBlockSize = 0x8000;

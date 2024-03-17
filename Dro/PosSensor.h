@@ -89,7 +89,6 @@ public:
 	void SetResolution(uint res)
 	{
 		m_pInfo->Resolution = res;
-		SensorInfoUpdate();
 	}
 
 	void SetDirection(bool dir)

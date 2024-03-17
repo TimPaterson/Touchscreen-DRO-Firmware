@@ -232,8 +232,8 @@ int main(void)
 	if (lcdPresent)
 	{
 		// Copy serial data in graphics memory
-		Lcd.CopySerialMemToRam(FlashScreenStart, RamScreenStart, ScreenFileLength, 1);
-		Lcd.CopySerialMemToRam(FlashFontStart, RamFontStart, FontFileLength, 1);
+		Lcd.CopySerialMemToRam(FlashScreenStart, RamScreenStart, ScreenFileLength, SerialFlashPort);
+		Lcd.CopySerialMemToRam(FlashFontStart, RamFontStart, FontFileLength, SerialFlashPort);
 
 		Lcd.LoadGraphicsCursor(PointerCursor, GTCCR_GraphicCursorSelect1);
 		Lcd.LoadGraphicsCursor(TargetCursor, GTCCR_GraphicCursorSelect2);
@@ -272,9 +272,6 @@ int main(void)
 				// Leave pTouch set to empty touch panel
 				break;
 			}
-
-			// The GT9271 needs some time before trying again
-			Timer::Delay_ms(500);
 		}
 
 		Actions::Init();
@@ -313,7 +310,8 @@ int main(void)
 			PowerDown::Process();
 
 		// Check status of SD card
-		if (!GetSdCd() == fSdOut && !FileOp.IsBusy())
+		// UNDONE: disable SD while developing next version of PCB
+		if (false && !GetSdCd() == fSdOut && !FileOp.IsBusy())
 		{
 			fSdOut = !fSdOut;
 			if (fSdOut)

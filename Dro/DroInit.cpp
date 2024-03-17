@@ -112,15 +112,15 @@ void Init()
 
 	// Set up SERCOM1 on PA16 (MOSI, pad0), PA17 (SCK, pad 1), PA19 (MISO, pad 3)
 	// This is on MUX channel C
-	SetPortMuxConfigA(PORT_MUX_C, PORT_WRCONFIG_INEN, RtpMosi_PIN | RtpSck_PIN | RtpMiso_PIN);
+	SetPortMuxA(PORT_MUX_C, RtpMosi_PIN | RtpSck_PIN | RtpMiso_PIN);
 
 	// Set up SERCOM0 on PA05 (RX, pad 1) and PA06 (TX, pad 2)
 	// Set up SERCOM2 on PA09 (MISO, pad1), PA10 (MOSI, pad 2), PA11 (SCK, pad 3)
 	// This is on MUX channel D
 	#ifdef USE_TEST_POINTS
-	SetPortMuxConfigA(PORT_MUX_D, PORT_WRCONFIG_INEN, ConsoleRx_PIN | ConsoleTx_PIN | SdMiso_PIN | SdMosi_PIN);
+	SetPortMuxA(PORT_MUX_D, ConsoleRx_PIN | ConsoleTx_PIN | SdMiso_PIN | SdMosi_PIN);
 	#else
-	SetPortMuxConfigA(PORT_MUX_D, PORT_WRCONFIG_INEN, ConsoleRx_PIN | ConsoleTx_PIN | SdMiso_PIN | SdMosi_PIN | SdSck_PIN);
+	SetPortMuxA(PORT_MUX_D, ConsoleRx_PIN | ConsoleTx_PIN | SdMiso_PIN | SdMosi_PIN | SdSck_PIN);
 	#endif
 	
 	// Set up TCC1 output W0[1] on PA07

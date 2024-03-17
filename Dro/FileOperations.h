@@ -16,7 +16,7 @@ extern byte g_FileBuf[FileBufSectors][FAT_SECT_SIZE] ALIGNED_ATTR(uint32_t);
 #define FILE_BUF_END ((byte *)g_FileBuf[FileBufSectors])
 
 // Use macros for state definitions
-#define FLASH_OP_STATES(op) OP_STATE(op, open) OP_STATE(op, seek) OP_STATE(op, read) OP_STATE(op, wait)
+#define FLASH_OP_STATES(op) OP_STATE(op, open) OP_STATE(op, seek) OP_STATE(op, retry) OP_STATE(op, read) OP_STATE(op, write) OP_STATE(op, verify)
 #define MOUNT_OP_STATES(op) OP_STATE(op, ready)
 #define IMPORT_OP_STATES(op) OP_STATE(op, open) OP_STATE(op, readStart) OP_STATE(op, erase) OP_STATE(op, read0) OP_STATE(op, read1)
 #define EXPORT_OP_STATES(op) OP_STATE(op, open) OP_STATE(op, write) OP_STATE(op, flush) OP_STATE(op, close)
@@ -42,7 +42,7 @@ enum
 #undef OP_STATE
 #define OP_STATE(op, st)	case STATE(op, st): {
 #define END_STATE			} return;
-#define EXIT_STATE			return;
+#define EXIT_STATE			return
 #define TO_STATE(op, st)	m_state = STATE(op, st)
 #define OP_DONE				break
 
@@ -208,10 +208,10 @@ protected:
 		{
 			ulong	addr;
 			long	cbTotal;
-			ushort	cb;
+			ushort	cbBuf;
 			ushort	erased;
 			ushort	oBuf;
-			byte	iBuf;
+			ushort	cbFlashed;
 		} flash;
 
 		// ToolImport

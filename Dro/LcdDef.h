@@ -47,11 +47,14 @@ private:
 	static constexpr long OscFreq = 10'000'000;		// Crystal clock
 	static constexpr long SdramFreq = 100'000'000;	// SDRAM clock - MCLK
 	static constexpr int SdramRefresh = 64;			// SDRAM refresh interval; ms
-	static constexpr int SdramRowSize = 4096;		// SDRAM row size (for refresh)
+	static constexpr int SdramRowSize = 8192;		// SDRAM row size (for refresh)
 	static constexpr int SdramRefInterval = SdramFreq / 1000 * SdramRefresh / SdramRowSize - 2;
 
 	// LCD parameters
 	static constexpr long LcdScanFreq = 50'000'000;	// LCD scan clock - SCLK
+	
+	// BuyDisplay.com has code samples with different values. Both seem to work.
+#if 0
 	// HSync
 	static constexpr int LcdHsyncWidthPx = 70;
 	static constexpr int LcdHsyncFrontPorchPx = 160;
@@ -60,10 +63,20 @@ private:
 	static constexpr int LcdVsyncWidthLn = 10;
 	static constexpr int LcdVsyncFrontPorchLn = 12;
 	static constexpr int LcdVsyncBackPorchLn = 23;
+#else
+	// HSync
+	static constexpr int LcdHsyncWidthPx = 20;
+	static constexpr int LcdHsyncFrontPorchPx = 160;
+	static constexpr int LcdHsyncBackPorchPx = 140;
+	// VSync
+	static constexpr int LcdVsyncWidthLn = 3;
+	static constexpr int LcdVsyncFrontPorchLn = 12;
+	static constexpr int LcdVsyncBackPorchLn = 20;
+#endif
 
 	// Serial flash/ROM SPI settings
-	// Unit 0: character generator ROM
-	static constexpr long MaxSpiClock0 = 30'000'000;	// when using Fast Read
+	// Unit 0: not installed, set the same to avoid clock speed switching
+	static constexpr long MaxSpiClock0 = 30'000'000;
 
 	// Unit 1: serial flash
 	static constexpr long MaxSpiClock1 = 30'000'000;

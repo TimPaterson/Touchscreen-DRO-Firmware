@@ -150,7 +150,7 @@ public:
 	{
 		uint	res;
 		
-		res = GetResolution();
+		res = PosSensor::GetResolution();
 		if (m_useFactor)
 			res = std::min(res, m_pSenseQ->GetResolution());
 			

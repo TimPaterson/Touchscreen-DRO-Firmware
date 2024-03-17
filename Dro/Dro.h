@@ -16,7 +16,7 @@
 #include "FatFileDef.h"
 
 
-#define PROGRAM_VERSION		6
+#define PROGRAM_VERSION		7
 #define GRAPHICS_VERSION	4
 #define FONT_VERSION		2
 #define FLASH_VERSION		2
@@ -438,7 +438,7 @@ extern Console_t Console;
 extern FILE Console_FILE;
 
 //*********************************************************************
-// Test Point -- if enabled, uses console receive pin as output
+// Test Point -- if enabled, uses SD card pins as output
 
 #ifdef USE_TEST_POINTS
 
