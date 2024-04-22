@@ -129,7 +129,7 @@ FlashWriteReady:
 				flash.oBuf += cb;
 				flash.cbBuf -= cb;
 				flash.erased -= cb;
-				UpdateMgr::UpdateProgress(cb);
+				DisplayProgress(cb);
 
 				if (flash.cbTotal <= 0)
 				{

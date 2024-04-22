@@ -5,6 +5,8 @@
          StrideMultiple="4">
   &Fonts;
 
+  <Header Version="5" Signature="PTDG"/>
+
   <Set>
     ScreenHeight = 600;
     ScreenWidth = 1024;

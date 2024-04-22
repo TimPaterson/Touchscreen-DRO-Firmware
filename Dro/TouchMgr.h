@@ -13,6 +13,8 @@ struct ScaleMatrix
 	int		aScale;
 	int		bScale;
 	int		base;
+
+	bool IsValid()	{ return aScale != 0 && bScale != 0; }
 };
 
 struct TouchInfo
@@ -24,6 +26,8 @@ struct TouchInfo
 	byte	sampleDiscard;
 	byte	averageShift;
 	byte	reserved[3];	// round up to multiple of 32 bits
+
+	bool IsValid()	{ return scaleX.IsValid(); }
 };
 
 enum TouchFlags
@@ -87,10 +91,11 @@ public:
 		m_posY.SetMax(maxY - 1);
 	}
 
-	static void SetMatrix(TouchInfo *pInfo)
+	static bool SetMatrix(TouchInfo *pInfo)
 	{
 		m_posX.SetMatrix(pInfo->scaleX);
 		m_posY.SetMatrix(pInfo->scaleY);
+		return pInfo->scaleX.IsValid();
 	}
 
 public:

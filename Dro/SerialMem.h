@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <sam.h>
-
 
 //****************************************************************************
 // Serial memory constants. Must be C-compatible.

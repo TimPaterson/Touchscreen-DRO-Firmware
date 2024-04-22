@@ -17,9 +17,18 @@
 
 
 #define PROGRAM_VERSION		7
-#define GRAPHICS_VERSION	4
-#define FONT_VERSION		2
 #define FLASH_VERSION		2
+
+// Get graphics and font versions from their respective header files
+#define START_HEADER(x)	static constexpr ulong GraphicsHeaderOffset = x;
+#define FILE_VERSION(x) static constexpr ulong GRAPHICS_VERSION = x;
+#define SIGNATURE(x)	static constexpr ulong GRAPHICS_SIGNATURE = x;
+#include "Images/Screen.h"
+
+#define START_HEADER(x)	static constexpr ulong FontHeaderOffset = x;
+#define FILE_VERSION(x) static constexpr ulong FONT_VERSION = x;
+#define SIGNATURE(x)	static constexpr ulong FONT_SIGNATURE = x;
+#include "Fonts/Fonts.h"
 
 // Debugging options
 #ifdef DEBUG

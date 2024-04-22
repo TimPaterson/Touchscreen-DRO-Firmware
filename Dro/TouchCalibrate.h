@@ -28,28 +28,51 @@ class TouchCalibrate_t : TouchCanvas, ScreenMgr
 	static constexpr ulong TargetColor = 0;
 	static constexpr ulong ButtonColor = 0x0000FF;
 	static constexpr ulong ButtonTextColor = 0xFFFFFF;
+	static constexpr ulong TextColor = 0;
 	static constexpr ulong BackColor = ScreenBackColor;
 
-	// Define the two big buttons to repeat or quite
-	static constexpr int ButtonHeight = ScreenHeight / 5;
-	static constexpr int ButtonWidth = ScreenWidth / 3;
-	static constexpr int ButtonLeft = ButtonWidth;
-	static constexpr int RepeatBtnTop = ButtonHeight;
-	static constexpr int DoneBtnTop = ButtonHeight * 3;
-	// 16 x 32 font is used with x2 multiplier
+	// Text messages
 	#define REPEAT_BTN_LABEL	"Calibrate"
-	#define DONE_BTN_LABEL		"Done"
-	static constexpr int TextHeight = 32 * 2;
-	static constexpr int TextWidth = 16 * 2;	// per character
+	#define DONE_BTN_LABEL		"Accept"
+	#define SKIP_BTN_LABEL		"Exit"
+	#define RESTART_LABEL		"Cycle power to restart calibration"
+	#define VERIFY_LABEL		"Touch anywhere to verify accuracy"
+	// 16 x 32 internal font is used
+	static constexpr int CharHeight = 32;
+	static constexpr int CharWidth = 16;
+	// x2 multiplier on buttons
+	static constexpr int ButtonCharHeight = CharHeight * 2;
+	static constexpr int ButtonCharWidth = CharWidth * 2;
+	// Define the a big button to repeat
+	static constexpr int RepeatBtnHeight = ScreenHeight / 5;
+	static constexpr int RepeatBtnWidth = ScreenWidth / 3;
+	static constexpr int RepeatBtnLeft = RepeatBtnWidth;
+	static constexpr int RepeatBtnTop = 0;
+	// Define the button quit
+	static constexpr int DoneBtnHeight = RepeatBtnHeight / 2;
+	static constexpr int DoneBtnWidth = (STRLEN(DONE_BTN_LABEL) + 2) * ButtonCharWidth;
+	static constexpr int DoneBtnLeft = (ScreenWidth - DoneBtnWidth) / 2;
+	static constexpr int DoneBtnTop = ScreenHeight - DoneBtnHeight;
 	// Positions within button
-	static constexpr int TextTop = (ButtonHeight - TextHeight) / 2;
-	static constexpr int RepeatTextLeft = (ButtonWidth - STRLEN(REPEAT_BTN_LABEL) * TextWidth) / 2;
-	static constexpr int DoneTextLeft = (ButtonWidth - STRLEN(DONE_BTN_LABEL) * TextWidth) / 2;
+	static constexpr int ReapeatTextTop = (RepeatBtnHeight - ButtonCharHeight) / 2;
+	static constexpr int RepeatTextLeft = (RepeatBtnWidth - STRLEN(REPEAT_BTN_LABEL) * ButtonCharWidth) / 2;
+	static constexpr int DoneTextTop = (DoneBtnHeight - ButtonCharHeight) / 2;
+	static constexpr int DoneTextLeft = (DoneBtnWidth - STRLEN(DONE_BTN_LABEL) * ButtonCharWidth) / 2;
+	static constexpr int SkipTextLeft = (DoneBtnWidth - STRLEN(SKIP_BTN_LABEL) * ButtonCharWidth) / 2;
+	// Position on screen
+	static constexpr int TextVertMargin = 6;
+	static constexpr int RestartTextTop = DoneBtnTop - CharHeight - TextVertMargin;
+	static constexpr int RestartTextLeft = (ScreenWidth - STRLEN(RESTART_LABEL) * CharWidth) / 2;
+	static constexpr int VerifyTextTop = RepeatBtnTop + RepeatBtnHeight + TextVertMargin;
+	static constexpr int VerifyTextWidth = STRLEN(VERIFY_LABEL) * CharWidth;
+	static constexpr int VerifyTextLeft = (ScreenWidth - VerifyTextWidth) / 2;
+	static constexpr int VerifyTextBottom = VerifyTextTop - CharHeight;
 
 	struct Target
 	{
 		// For initializing
 		#define TARGET(x, y) {{x, 0, 1, ScreenHeight}/*vert*/, {0, y, ScreenWidth, 1}/*horz*/}
+		#define TARGET_MID(x, y) {{x, 0, 1, RestartTextTop}/*vert*/, {0, y, ScreenWidth, 1}/*horz*/}
 
 		Area	vert;
 		Area	horz;
@@ -84,7 +107,7 @@ class TouchCalibrate_t : TouchCanvas, ScreenMgr
 	// Public interface
 	//*********************************************************************
 public:
-	TouchCalibrate_t() : TouchCanvas(0, ScreenWidth, ScreenHeight, ScreenWidth, Color16bpp, NULL) {}
+	TouchCalibrate_t() : TouchCanvas(0, ScreenWidth, ScreenHeight, ScreenWidth, Color16bpp, (HotspotList *)&s_hotSpots) {}
 
 public:
 	void Open(bool fShowButtons = false)
@@ -92,44 +115,48 @@ public:
 		int		flags;
 		HotspotData	*pSpot;
 
-		if (AllocIfNeeded(ScreenHeight))
-		{
-			// New screen, build image
-			FillRect(this, GetViewArea(), BackColor);
-			SetHitList((HotspotList *)&s_hotSpots);
-		}
+		AllocIfNeeded(ScreenHeight);
 		m_oldImage = GetMainImage();
+		FillRect(this, GetViewArea(), BackColor);
 		SetMainImage(this);
 		DisablePip1();
 		DisablePip2();
+		
+		// Add restart label
+		SetupText(this, CCR0_CharHeight32 | CCR0_CharSet8859_1, 
+			CCR1_CharHeightX1 | CCR1_CharWidthX1 | CCR1_CharBackgroundTransparent);
+		SetForeColor(TextColor);
+		SetTextPosition(RestartTextLeft, RestartTextTop);
+		WriteString(RESTART_LABEL);
 
 		if (fShowButtons)
 			goto ShowButtons;
 
 		for (;;) 
 		{
-
-			if (StartCalibration())
-				break;
+			DrawDoneButton(SKIP_BTN_LABEL, SkipTextLeft);
+			StartCalibration();
 
 ShowButtons:
-			DrawButtons();
+			DrawDoneButton(DONE_BTN_LABEL, DoneTextLeft);
+			DrawCalButton();
 			for (;;) 
 			{
+				// This loop display a target where screen is being touched
 				flags = GetTouch(true);
 				if (flags == AbortFlag)
 					goto Abort;
 
 				if (flags & TOUCH_Start)
 				{
-					pSpot = this->TestHit(pTouch->GetX(), pTouch->GetY());
+					pSpot = TestHit(pTouch->GetX(), pTouch->GetY());
 					if (pSpot != NULL && pSpot != NOT_ON_CANVAS)
 					{
 						if (pSpot->id == HOTSPOT_Done)
 							goto Abort;
 						else
 						{
-							DrawButtons(true);
+							EraseCalButton();
 							break;	// repeat
 						}
 					}
@@ -140,7 +167,6 @@ ShowButtons:
 Abort:
 		DisableGraphicsCursor();				
 		Eeprom.StartSave();
-		DrawButtons(true);
 		SetMainImage(m_oldImage);
 	}
 
@@ -148,24 +174,37 @@ Abort:
 	// Helpers
 	//*********************************************************************
 protected:
-	void DrawButtons(bool fErase = false)
+	void DrawCalButton()
 	{
-		ulong color = fErase ? BackColor : ButtonColor;
-		FillRect(this, &s_areaRepeat, color);
-		FillRect(this, &s_areaDone, color);
+		FillRect(this, &s_areaRepeatBtn, ButtonColor);
 
-		if (!fErase)
-		{
-			// Write the labels
-			SetDrawCanvas(this);
-			SetForeColor(ButtonTextColor);
-			InternalFont(CCR0_CharHeight32, CCR0_CharSet8859_1);
-			WriteReg(CCR1, CCR1_CharHeightX2 | CCR1_CharWidthX2 | CCR1_CharBackgroundTransparent);
-			SetTextPosition(ButtonLeft + RepeatTextLeft, RepeatBtnTop + TextTop);
-			WriteString(s_archRepeat);
-			SetTextPosition(ButtonLeft + DoneTextLeft, DoneBtnTop + TextTop);
-			WriteString(s_archDone);
-		}
+		// Write the button label
+		SetForeColor(ButtonTextColor);
+		WriteReg(CCR1, CCR1_CharHeightX2 | CCR1_CharWidthX2 | CCR1_CharBackgroundTransparent);
+		SetTextPosition(RepeatBtnLeft + RepeatTextLeft, RepeatBtnTop + ReapeatTextTop);
+		WriteString(REPEAT_BTN_LABEL);
+		
+		// Now the verify message
+		SetForeColor(TextColor);
+		WriteReg(CCR1, CCR1_CharHeightX1 | CCR1_CharWidthX1 | CCR1_CharBackgroundTransparent);
+		SetTextPosition(VerifyTextLeft, VerifyTextTop);
+		WriteString(VERIFY_LABEL);
+	}
+
+	void DrawDoneButton(const char *psz, int left)
+	{
+		FillRect(this, &s_areaDoneBtn, ButtonColor);
+
+		// Write the labels
+		SetForeColor(ButtonTextColor);
+		WriteReg(CCR1, CCR1_CharHeightX2 | CCR1_CharWidthX2 | CCR1_CharBackgroundTransparent);
+		SetTextPosition(DoneBtnLeft + left, DoneBtnTop + DoneTextTop);
+		WriteString(psz);
+	}
+	
+	void EraseCalButton()
+	{
+		FillRect(this, &s_areaRepeat, BackColor);
 	}
 
 	void DrawTarget(const Target &target, bool fErase = false)
@@ -278,9 +317,10 @@ Restart:
 		return false;
 	}
 
-	static int GetTouch(bool fShow = false)
+	int GetTouch(bool fShow = false)
 	{
 		uint	flags;
+		HotspotData	*pSpot;
 
 		while (!(pTouch->Process()))
 		{
@@ -291,7 +331,14 @@ Restart:
 				return AbortFlag;
 			}
 		}
+		
 		flags = pTouch->GetTouch();
+		if (flags & TOUCH_Start)
+		{
+			pSpot = TestHit(pTouch->GetX(), pTouch->GetY());
+			if (pSpot != NULL && pSpot != NOT_ON_CANVAS && pSpot->id == HOTSPOT_Done)
+				return AbortFlag;
+		}
 
 		// show cursor at touch position
 		if (fShow && flags & TOUCH_Touched)
@@ -311,36 +358,38 @@ Restart:
 protected:
 	TouchCanvas *m_oldImage;
 	TouchPoint	m_points[3];
-
+	
 	//*********************************************************************
 	// const (flash) data
 	//*********************************************************************
 protected:
-	inline static const char s_archRepeat[] = REPEAT_BTN_LABEL;
-	inline static const char s_archDone[] = DONE_BTN_LABEL;
 	inline static const ScaleMatrix s_calibMatrix = { TouchScale, 0, 0 };
 
 	inline static const Target s_Targets[3] =
 	{
 		TARGET(TouchEdgeOffsetX, BottomTarget),
-		TARGET(MiddleTargetX, TouchEdgeOffsetY),
+		TARGET_MID(MiddleTargetX, TouchEdgeOffsetY),
 		TARGET(RightTarget, MiddleTargetY),
 	};
 
-	inline static const Area s_areaRepeat = { ButtonLeft, RepeatBtnTop, ButtonWidth, ButtonHeight };
-	inline static const Area s_areaDone = { ButtonLeft, DoneBtnTop, ButtonWidth, ButtonHeight };
+	inline static const Area s_areaDoneBtn = { DoneBtnLeft, DoneBtnTop, DoneBtnWidth, DoneBtnHeight };
+	inline static const Area s_areaRepeatBtn = { RepeatBtnLeft, RepeatBtnTop, RepeatBtnWidth, RepeatBtnHeight };
+	inline static const Area s_areaRepeat = { VerifyTextLeft, RepeatBtnTop, VerifyTextWidth, RepeatBtnHeight + TextVertMargin + CharHeight };
 
 	inline static const CalibrateHotspotList s_hotSpots = { 2, {
-		// Array of Hotspots: the display area, and the scroll thumb
-		{ButtonWidth, ButtonHeight, ButtonWidth * 2 - 1, ButtonHeight * 2 - 1,
+		// Array of Hotspots
+		{RepeatBtnLeft, RepeatBtnTop, RepeatBtnLeft + RepeatBtnWidth - 1, RepeatBtnTop + RepeatBtnHeight - 1,
 			{HOTSPOT_Repeat, 0}},
-		{ButtonWidth, ButtonHeight * 3, ButtonWidth * 2 - 1, ButtonHeight * 4 - 1,
+		{DoneBtnLeft, DoneBtnTop, DoneBtnLeft + DoneBtnWidth - 1, DoneBtnTop + DoneBtnHeight - 1,
 			{HOTSPOT_Done, 0}}
 	}};
 };
 
 
+//****************************************************************************
 // Create a single static instance of the above class
+//****************************************************************************
+
 class TouchCalibrate
 {
 public:

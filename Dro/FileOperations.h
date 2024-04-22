@@ -9,6 +9,8 @@
 
 #include "FatFileDef.h"
 #include <FatFile/FatSys.h>
+#include "LcdDef.h"
+#include "GraphicsLib/ProgressBar.h"
 
 
 static constexpr int FileBufSectors = 8;
@@ -191,27 +193,42 @@ public:
 			m_pfnError = NoErrorHandler;
 	}
 
+	void SetProgressBar(ProgressBar *progress = NULL)	
+	{ 
+		m_progress = progress;
+	}
+
 protected:
 	static int NoErrorHandler(int err) 
 	{ 
 		printf("File error %i\n", err); 
 		return err;
 	}
+	
+	void DisplayProgress(long value)
+	{
+		if (m_progress != NULL)
+			m_progress->IncreaseValue(value);
+	}
 
 protected:
+	byte	m_state;
+	byte	m_hFile;
+	byte	m_drive;
 	ErrorHandler	*m_pfnError = NoErrorHandler;
+	ProgressBar		*m_progress;
 
 	union
 	{
 		// WriteFileToFlash
 		struct  
 		{
-			ulong	addr;
-			long	cbTotal;
 			ushort	cbBuf;
 			ushort	erased;
 			ushort	oBuf;
 			ushort	cbFlashed;
+			ulong	addr;
+			long	cbTotal;
 		} flash;
 
 		// ToolImport
@@ -245,9 +262,6 @@ protected:
 			int		cb;
 		} update;
 	};
-	byte	m_state;
-	byte	m_hFile;
-	byte	m_drive;
 };
 
 extern FileOperations FileOp;

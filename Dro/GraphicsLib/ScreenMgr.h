@@ -254,6 +254,13 @@ public:
 		WriteReg(BTE_CTRL1, BTE_CTRL1_OpcodeSolidFill);
 		RectBorderDraw(pAreaDst);
 	}
+	
+	static void SetupText(Canvas *pDst, uint font, uint size)
+	{
+		SetDrawCanvas(pDst);
+		WriteReg(CCR0, font | CCR0_CharSourceInternal);
+		WriteReg(CCR1, size);
+	}
 
 protected:
 	static void CopyRectSrcSet(Canvas *pDst, const Area *pAreaDst)

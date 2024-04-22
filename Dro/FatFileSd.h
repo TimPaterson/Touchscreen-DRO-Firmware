@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <FatFile/FatSysWait.h>
 #include <FatFile/SdCard/SdCard.h>
 #include <Com/Spi.h>
 

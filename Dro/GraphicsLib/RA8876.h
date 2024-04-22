@@ -476,8 +476,9 @@ typedef byte dat_t;
 		return bCs;
 	}
 
-	static void SerialMemRead(ulong addr, int cb, byte *pb, uint port) NO_INLINE_ATTR
+	static void SerialMemRead(ulong addr, int cb, void *pv, uint port) NO_INLINE_ATTR
 	{
+		byte	*pb = (byte *)pv;
 		uint	val;
 		uint	bCs;
 		int		cbWrite;

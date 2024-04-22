@@ -16,7 +16,6 @@ class UpdateMgr
 {
 	static constexpr ulong ProgressBarForecolor = 0x00FF00;
 	static constexpr ulong ProgressBarBackcolor = 0xFFFFFF;
-	static constexpr ulong ProgressInterval = 0x1000;	// chunk size before updating progress bar
 
 	static constexpr int FlashRowSize = FLASH_PAGE_SIZE * NVMCTRL_ROW_PAGES;
 
@@ -46,7 +45,7 @@ class UpdateMgr
 		SECMAP_Fonts = 4,
 		SECMAP_All = SECMAP_Firmware | SECMAP_Graphics | SECMAP_Fonts
 	};
-
+	
 	//*********************************************************************
 	// Public interface
 	//*********************************************************************3
@@ -68,7 +67,7 @@ public:
 		Lcd.DisablePip1();
 		Lcd.DisablePip2();
 	}
-
+	
 	static byte *GetUpdateBuffer()	{ return s_updateBuffer; }
 
 	static void UpdateAction(uint spot, int x, int)
@@ -224,8 +223,8 @@ public:
 						s_pGraphicsSection = pGraphicsSection;
 						s_pFontsSection = pFontsSection;
 						s_progress.SetMax(cbTotal);
-						s_progressVal = 0;
 						s_progress.SetValue(0);
+						FileOp.SetProgressBar(&s_progress);
 
 #if UDATE_FROM_VIDEO_RAM
 						// Step 1: Read program into video RAM
@@ -309,19 +308,6 @@ InvalidHeader:
 			FatSys::Close(hFile);
 			printf("complete.\n");
 			break;
-		}
-	}
-
-	static void UpdateProgress(uint cb)
-	{
-		if (s_updateState == UPDT_None)
-			return;
-
-		s_progressVal += cb;
-		if (s_progressVal - s_progressLast > ProgressInterval)
-		{
-			s_progressLast = s_progressVal;
-			s_progress.SetValue(s_progressVal);
 		}
 	}
 
@@ -565,14 +551,12 @@ protected:
 	// static (RAM) data
 	//*********************************************************************
 protected:
-	inline static UpdateSection	*s_pFirmwareSection;
-	inline static UpdateSection	*s_pGraphicsSection;
-	inline static UpdateSection	*s_pFontsSection;
-	inline static ulong	s_progressVal;
-	inline static ulong	s_progressLast;
 	inline static byte	s_editMode;
 	inline static byte	s_updateState;
 	inline static bool	s_fWriteAll;
+	inline static UpdateSection	*s_pFirmwareSection;
+	inline static UpdateSection	*s_pGraphicsSection;
+	inline static UpdateSection	*s_pFontsSection;
 
 	inline static EditLine		s_editFile{UpdateDialog, UpdateDialog_Areas.FileName, FileBrowser::GetPathBuf(),
 		FileBrowser::GetPathBufSize(), FONT_CalcSmall, UpdateForeground, UpdateBackground};

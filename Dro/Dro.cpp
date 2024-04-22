@@ -242,10 +242,6 @@ int main(void)
 		Lcd.SetMainImage(&MainScreen);
 		Lcd.DisplayOn();
 
-		// Initialize touch panel
-		TouchMgr::SetSize(Lcd.ScreenWidth, Lcd.ScreenHeight);
-		TouchMgr::SetMatrix(&Eeprom.Data.TouchInit);
-
 		// Search for touch panel
 		for ( int i = 0; ; i++)
 		{
@@ -274,6 +270,21 @@ int main(void)
 			}
 		}
 
+		// Initialize touch panel
+		TouchMgr::SetSize(Lcd.ScreenWidth, Lcd.ScreenHeight);
+		if (!TouchMgr::SetMatrix(&Eeprom.Data.TouchInit))
+		{
+			// touch panel not calibrated
+			if (pTouch == &NoTouch)
+			{
+				// UNDONE: No touch panel, require mouse
+			}
+			else
+			{
+				TouchCalibrate::Open();
+			}
+		}
+		
 		Actions::Init();
 
 		DEBUG_PRINT("Graphics memory allocated: %lu bytes\n", Canvas::AllocVideoRam(0));

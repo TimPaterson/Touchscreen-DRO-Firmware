@@ -29,6 +29,8 @@ struct Image
 	ushort		m_imageWidth;
 };
 
+// ColorImage can't derive from Image because the added byte member
+// would be 4-byte aligned instead of packed.
 struct ColorImage
 {
 	byte GetColorDepth() const	{ return m_colorDepth; }
@@ -62,6 +64,7 @@ public:
 	byte GetColorDepth() const	{ return m_colorDepth; }
 	Area *GetViewArea()			{ return (Area *)&m_viewPosX; }
 	
+public:
 	void SetViewPos(uint x, uint y)
 	{
 		m_viewPosX = x;
@@ -79,6 +82,7 @@ public:
 		return false;
 	}
 
+public:
 	static ulong AllocVideoRam(int size)
 	{
 		ulong res = s_NextFreeRam;
