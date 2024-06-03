@@ -404,7 +404,7 @@ void ToolLib::ShowToolInfo()
 	if (Eeprom.Data.fCncCoordinates)
 		uVal = -uVal;
 	Ypos.SetOffset(sides & ToolFrontBit ? -uVal : (sides & ToolBackBit ? uVal : 0));
-	uVal =pInfo->length;
+	uVal = pInfo->length;
 	if (Eeprom.Data.fCncCoordinates)
 		uVal = -uVal;
 	Zpos.SetOffset(Eeprom.Data.fToolLenAffectsZ ? uVal : 0);

@@ -10,6 +10,7 @@
 #include <Nvm/Nvm.h>
 #include "VersionUpdate.h"
 #include "ProgressBar.h"
+#include "PowerDown.h"
 
 
 class UpdateMgr
@@ -300,6 +301,7 @@ InvalidHeader:
 #else
 			PrepFirmwareUpdate(FlashUpdateStart);
 #endif
+			PowerDown::Save();	// keep our current position
 			UpdateFirmware(s_pFirmwareSection->dataSize);
 			break;
 

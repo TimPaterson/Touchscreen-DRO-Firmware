@@ -53,8 +53,9 @@ private:
 	// LCD parameters
 	static constexpr long LcdScanFreq = 50'000'000;	// LCD scan clock - SCLK
 	
-	// BuyDisplay.com has code samples with different values. Both seem to work.
-#if 0
+	// BuyDisplay.com has code samples with different values. The 10" display
+	// needs the sync times.
+#if 1
 	// HSync
 	static constexpr int LcdHsyncWidthPx = 70;
 	static constexpr int LcdHsyncFrontPorchPx = 160;

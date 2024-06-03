@@ -9,11 +9,10 @@
 
 #include "LcdDef.h"
 #include "ScreenMgr.h"
-#include "AxisDisplay.h"
+#include "PowerDown.h"
 #include "ToolLib.h"
 #include "TouchCalibrate.h"
 #include "UpdateMgr.h"
-#include "PowerDown.h"
 
 
 class Actions

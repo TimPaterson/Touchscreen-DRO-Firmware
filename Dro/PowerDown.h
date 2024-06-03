@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include "AxisDisplay.h"
+
 
 #define DEFAULT_TIME	1, 1, 2024, 12, 0, 0	// month, day, year, hour, minute second
 

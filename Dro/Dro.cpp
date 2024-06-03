@@ -12,11 +12,9 @@
 #include "RA8876.h"
 #include "FatFileSd.h"
 #include "UsbDro.h"
-#include "AxisDisplay.h"
 #include "Actions.h"
 #include "FileOperations.h"
 #include "VersionUpdate.h"
-#include "PowerDown.h"
 #include "GT9271.h"
 
 //*********************************************************************

@@ -7,7 +7,6 @@
 
 #include <standard.h>
 #include "Dro.h"
-#include "AxisDisplay.h"
 #include "PowerDown.h"
 #include "GT9271.h"
 

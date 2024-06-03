@@ -40,10 +40,10 @@ public:
 	{
 		double	pos;
 
-		pos = PosSensor::GetPosition() + m_offset;
+		pos = GetSensorPosition() + m_offset;
 
 		if (m_useFactor)
-			pos += m_pSenseQ->GetPosition() * m_qFactor;
+			pos += m_pSenseQ->GetAbsPosition() * m_qFactor;
 
 		if (IsMetric())
 			return round(pos * m_mmRounding) / m_mmRounding;
@@ -60,9 +60,9 @@ public:
 			pos *= MmPerInch;
 			
 		if (m_useFactor)
-			pos -= m_pSenseQ->GetPosition() * m_qFactor;
+			pos -= m_pSenseQ->GetAbsPosition() * m_qFactor;
 
-		posUndo = PosSensor::SetPosition(pos - m_offset);
+		posUndo = SetSensorPosition(pos - m_offset);
 		if (posUndo != 0)
 		{
 			++undo.cur %= UndoLevels;
@@ -97,7 +97,7 @@ public:
 		if (level < 0)
 			level += UndoLevels;
 			
-		dist = PosSensor::GetDistance(undo.value[level]);
+		dist = GetSensorDistance(undo.value[level]);
 		
 		if (!IsMetric())
 			dist /= MmPerInch;
@@ -109,10 +109,10 @@ public:
 	{
 		double delta;
 		
-		delta = PosSensor::GetDistance();
+		delta = GetSensorDistance();
 		
 		if (m_useFactor)
-			delta += m_pSenseQ->GetDistance();
+			delta += m_pSenseQ->GetSensorDistance();
 			
 		if (!IsMetric())
 			delta /= MmPerInch;
@@ -127,14 +127,26 @@ public:
 	
 	void SetFactor(double factor)
 	{
+		double	newPos = 0;
+		
+		// Keep the position from jumping when the compound angle is
+		// turned on and off.
+		if (m_useFactor)
+			newPos += m_pSenseQ->GetAbsPosition() * m_qFactor;
+			
 		m_qFactor = factor;
 		m_useFactor = m_pSenseQ != NULL && !m_pSenseQ->IsDisabled() && factor != 0;
+		
+		if (m_useFactor)
+			newPos -= m_pSenseQ->GetAbsPosition() * m_qFactor;
+		
+		AdjustSensorPosition(newPos);
 		SetRounding();
 	}
 
 	double GetResolution()	
 	{ 
-		return (double)PosSensor::GetResolution() * 1000 / UnitFactor; 
+		return (double)GetSensorResolution() * 1000 / UnitFactor; 
 	}
 	
 	void SetResolution(double res)
@@ -142,7 +154,7 @@ public:
 		if (res > MaxResolution || res < MinResolution)
 			return;
 			
-		PosSensor::SetResolution(lround(res * (UnitFactor / 1000)));	// per micron instead of per mm
+		SetSensorResolution(lround(res * (UnitFactor / 1000)));	// per micron instead of per mm
 		SetRounding();
 	}
 	
@@ -150,9 +162,9 @@ public:
 	{
 		uint	res;
 		
-		res = PosSensor::GetResolution();
+		res = GetSensorResolution();
 		if (m_useFactor)
-			res = std::min(res, m_pSenseQ->GetResolution());
+			res = std::min(res, m_pSenseQ->GetSensorResolution());
 			
 		// Set up display rounding according to sensor resolution
 		// For 1, 2, 5, 10 um. Resolution in 0.1um units
@@ -193,6 +205,6 @@ protected:
 	double		m_offset;
 	double		m_inchRounding;
 	double		m_mmRounding;
-	UndoInfo	m_arUndoInfo[PosSensor::MaxOrigins];
+	UndoInfo	m_arUndoInfo[MaxOrigins];
 };
 

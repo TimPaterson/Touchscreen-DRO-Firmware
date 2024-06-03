@@ -230,10 +230,15 @@ public:
 	
 	static void ShareT()
 	{
-		if (s_isTshared)
+		if (Eeprom.Data.fIsLathe)
 		{
 			if (Eeprom.Data.fCompoundFactor)
-				Zdisplay.AssignDisplay(s_latheTpos, LABEL_T);
+			{
+				if (s_isTshared)
+					Zdisplay.AssignDisplay(s_latheTpos, LABEL_T);
+				else
+					Zdisplay.AssignDisplay(NULL, 0);
+			}
 			else
 				Zdisplay.AssignDisplay(s_latheZprimePos, LABEL_Zprime);
 		}
