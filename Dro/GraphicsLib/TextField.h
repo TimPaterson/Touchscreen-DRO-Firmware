@@ -9,7 +9,7 @@
 
 #include "ScreenMgr.h"
 #include "FontInfo.h"
-
+#include "..\HotspotList.h"
 
 //#define FONT_BPP_8
 
@@ -135,7 +135,7 @@ public:
 		FillRect(m_pCanvas, &area, m_backColor);
 	}
 
-	int printf(const char *fmt, ...) __attribute__ ((format (printf, 2, 3)))
+	virtual int printf(const char *fmt, ...) __attribute__ ((format (printf, 2, 3)))
 	{
 		va_list ap;
 		int i;
@@ -240,6 +240,12 @@ protected:
 		byte	width;
 		int		remain;
 
+		if (ch == '\n')
+		{
+			ResetPosition();
+			return;
+		}
+
 		ch -= m_pFontInfo->FirstChar;
 		if (ch > m_pFontInfo->LastChar)
 			return;
@@ -278,52 +284,14 @@ protected:
 };
 
 
-class TextLine : public TextField
-{
-public:
-	TextLine(Canvas &canvas, const Area &area, FontInfo &font, ulong foreColor, ulong backColor):
-		TextLine(canvas, area, font, foreColor, backColor,
-		({union {void (TextLine::*mf)(byte); _fdev_put_t *p;} u = {&TextLine::WriteCharActive}; u.p;}))
-		{}
-
-protected:
-	TextLine(Canvas &canvas, const Area &area, FontInfo &font, ulong foreColor, ulong backColor, _fdev_put_t *put):
-		TextField(canvas, area, font, foreColor, backColor, put) {}
-
-public:
-	void WriteCharActive(byte ch)
-	{
-		if (ch == '\n')
-		{
-			ResetPosition();
-			return;
-		}
-
-		TextField::WriteCharActive(ch);
-	}
-
-	// Local version to use our WriteCharActive()
-	void WriteString(const char *psz)
-	{
-		byte	ch;
-
-		MakeActive();
-		for (;;)
-		{
-			ch = *psz++;
-			if (ch == 0)
-				return;
-			WriteCharActive(ch);
-		}
-	}
-};
+//****************************************************************************
 
 
-class NumberLine : public TextLine
+class NumberLine : public TextField
 {
 public:
 	NumberLine(Canvas &canvas, const Area &area, FontInfo &font, ulong foreColor, ulong backColor):
-		TextLine(canvas, area, font, foreColor, backColor)
+		TextField(canvas, area, font, foreColor, backColor)
 	{
 		SetSpaceWidth(GetStdCharWidth('0'));
 	}
@@ -331,7 +299,7 @@ public:
 public:
 	void SetFont(FontInfo &font)
 	{
-		TextLine::SetFont(font);
+		TextField::SetFont(font);
 		SetSpaceWidth(GetStdCharWidth('0'));
 	}
 
@@ -364,10 +332,12 @@ public:
 		if (*psz == '-')
 			ShiftMinus();
 
-		TextLine::WriteString(psz);
+		TextField::WriteString(psz);
 	}
 };
 
+
+//****************************************************************************
 
 class NumberLineBlankZ : public NumberLine
 {
@@ -446,3 +416,124 @@ public:
 	}
 };
 
+
+//****************************************************************************
+
+class TextFieldFixed : public TextField
+{
+public:
+	TextFieldFixed(Canvas &canvas, const Area &area, ulong foreColor, ulong backColor, byte ccr0, byte ccr1, bool isMultiLine = false):
+		TextFieldFixed(canvas, area, FONT_CalcSmall, foreColor, backColor, ccr0, ccr1, isMultiLine,
+		({union {void (TextFieldFixed::*mf)(byte); _fdev_put_t *p;} u = {&TextFieldFixed::WriteCharFixed}; u.p;}))
+		{}
+
+	TextFieldFixed(Canvas &canvas, const Area &area, FontInfo &font, ulong foreColor, ulong backColor):
+		TextField(canvas, area, font, foreColor, backColor)
+		{}
+
+protected:
+	TextFieldFixed(Canvas &canvas, const Area &area, FontInfo &font, ulong foreColor, 
+		ulong backColor, byte ccr0, byte ccr1, bool isMultiLIne, _fdev_put_t *put):
+		TextField(canvas, area, font, foreColor, backColor, put)
+		{
+			SetCharSize(ccr0, ccr1, isMultiLIne);
+		}
+
+	//*********************************************************************
+	// Public interface
+	//*********************************************************************3
+public:
+	virtual int printf(const char *fmt, ...) __attribute__ ((format (printf, 2, 3)))
+	{
+		va_list ap;
+		int i;
+
+		MakeActive();
+		va_start(ap, fmt);
+		i = vfprintf(&m_file, fmt, ap);
+		va_end(ap);
+
+		return i;
+	}
+
+	void SetCharSize(byte ccr0, byte ccr1, bool isMultiLine = false)
+	{
+		m_ccr0Val = ccr0;
+		m_ccr1Val = ccr1;
+
+		m_width = (ccr0 & CCR0_CharHeight_Mask) == CCR0_CharHeight16 ? 8 :
+				(ccr0 & CCR0_CharHeight_Mask) == CCR0_CharHeight24 ? 12 : 16;
+
+		m_height = isMultiLine ? m_width * 2 : 0;
+
+		switch (ccr1 & CCR1_CharWidth_Mask)
+		{
+			case CCR1_CharWidthX1:
+				break;
+
+			case CCR1_CharWidthX2:
+				m_width *= 2;
+				break;
+
+			case CCR1_CharWidthX3:
+				m_width *= 3;
+				break;
+
+			case CCR1_CharWidthX4:
+				m_width *=4;
+				break;
+		}
+
+		switch (ccr1 & CCR1_CharHeight_Mask)
+		{
+			case CCR1_CharHeightX1:
+				break;
+
+			case CCR1_CharHeightX2:
+				m_height *= 2;
+				break;
+
+			case CCR1_CharHeightX3:
+				m_height *= 3;
+				break;
+
+			case CCR1_CharHeightX4:
+				m_height *=4;
+				break;
+		}
+	}
+
+	//*********************************************************************
+	// Helpers
+	//*********************************************************************
+protected:
+	void MakeActive()
+	{
+		SetupText(m_pCanvas, m_ccr0Val, m_ccr1Val);
+		SetForeColor(m_foreColor);
+		SetBackColor(m_backColor);
+		SetTextPosition(m_curPosX, m_curPosY);
+	}
+
+	void WriteCharFixed(byte ch)
+	{
+		if (ch == '\n')
+		{
+			m_curPosX = m_pArea->Xpos;
+			m_curPosY = m_curPosY + m_height;
+			SetTextPosition(m_curPosX, m_curPosY);
+			return;
+		}
+		m_curPosX += m_width;
+		Lcd.WriteChar(ch);
+	}
+
+	//*********************************************************************
+	// instance data
+	//*********************************************************************
+protected:
+	byte	m_ccr0Val;
+	byte	m_ccr1Val;
+	byte	m_width;
+	byte	m_height;
+};

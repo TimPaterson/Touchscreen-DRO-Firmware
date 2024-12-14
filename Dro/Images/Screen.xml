@@ -5,7 +5,7 @@
          StrideMultiple="4">
   &Fonts;
 
-  <Header Version="5" Signature="PTDG"/>
+  <Header Version="6" Signature="PTDG"/>
 
   <Set>
     ScreenHeight = 600;
@@ -52,6 +52,7 @@
   <Color Name="UndoTextColor" Color="Gray" ColorDepth="Color16bpp"/>
   <Color Name="UndoLineColor" Color="Blue" ColorDepth="Color16bpp"/>
   <Color Name="UndoBackColor" Color="CalcBackColor" ColorDepth="Color16bpp"/>
+  <Color Name="ScrollThumbColor" Color="Gold" ColorDepth="Color16bpp"/>
 
   <!-- Components -->
   <!-- This one not used, just gets character widths -->
@@ -2213,11 +2214,10 @@
     <!-- Import/Export dialog -->
     FileEntryHeight = BtnHeight;
     RadioImpExpWidth = 125; <!-- includes text -->
-    RadioDriveWidth = 104;
     RadioButtonHeight = 50; <!-- vertical pitch-->
     RadioButtonVoffset = (RadioButtonHeight - RadioButtonSize) / 2;
     RadioButtonTop = (ToolLibHeight - 2 * RadioButtonHeight) / 2;
-    ImportCtrlsWidth = RadioImpExpWidth + RadioDriveWidth + KeySpace * 2 + BtnWidth * 2;
+    ImportCtrlsWidth = RadioImpExpWidth + KeySpace * 2 + BtnWidth * 2;
     ImportCtrlsLeft = ToolLibWidth - ImportCtrlsWidth - KeySpace;
     FileClearBtnLeft = ImportCtrlsLeft - KeySpace - ClearBtnWidth - 1;
     FileClearBtnTop = (FileEntryHeight - ClearBtnHeight) / 2;
@@ -2351,7 +2351,7 @@
     ExportIconAdj = ImportIconAdj;
     AddFolderAdj = 0;
     OpenFolderAdj = 3;
-    RadioImpExpLeft = RadioDriveWidth;
+    RadioImpExpLeft = 0;
     ImpExpButtonLeft = RadioImpExpLeft + RadioImpExpWidth + KeySpace;
     ImpExpCancelLeft = ImpExpButtonLeft + BtnWidth + KeySpace;
   </Set>
@@ -2459,7 +2459,7 @@
       GripPitch = (ScrollThumbHeight - 2 * GripFirstTop) / (GripCount - 1);
       GripTop = GripPitch / 2;
     </Set>
-    <Rectangle Height="ScrollThumbHeight" Width="ScrollThumbWidth" RadiusX="5" RadiusY="5" Fill="Gold">
+    <Rectangle Area="Thumb" Height="ScrollThumbHeight" Width="ScrollThumbWidth" RadiusX="5" RadiusY="5" Fill="ScrollThumbColor">
       <Grid ColumnWidth="0" RowHeight="GripPitch">
         <Default>
           <Line X1="GripLeft" Y1="GripTop" X2="GripRight" Y2="GripTop" StrokeThickness="1" Stroke="DarkSlateGray"/>
@@ -2481,7 +2481,7 @@
   </Canvas>
 
   <!-- Tool Import -->
-  <Canvas Name="ToolImport" Height="ToolLibHeight" Width="ToolLibWidth" ColorDepth="Color16bpp" Fill="ToolInfoBackground" WidthMultiple="4">
+  <Canvas Name="ToolImport"  Height="ToolLibHeight" Width="ToolLibWidth" ColorDepth="Color16bpp" Fill="ToolInfoBackground" WidthMultiple="4">
     <Rectangle Top="KeySpace" Left="KeySpace" Height="FileEntryHeight" Width="FileBoxWidth" StrokeThickness="1" Stroke="ToolInfoForeground">
       <Rectangle HotSpot="FileName" Group="ToolLib" Height="FileEntryHeight" Width="FileTextWidth"/>
       <Rectangle Area="FileName" Top="(FileEntryHeight - SmallTextHeight) / 2" Left="FileTextLeft"
@@ -2489,24 +2489,6 @@
       <Image HotSpot="ClearFile" Group="ToolLib" Source="Delete128.png" Left="FileClearBtnLeft" Top="FileClearBtnTop" Height="ClearBtnHeight" Width="ClearBtnWidth"/>
     </Rectangle>
     <Rectangle Left="ImportCtrlsLeft" Height="ToolLibHeight" Width="ToolLibWidth">
-      <Ref RefName="RadioButtonTextOn" Top="RadioButtonTop">
-        <Set>
-          Text.Text = USB;
-          RadioBox.Width = RadioDriveWidth;
-          RadioBox.HotSpot = UsbDriveRadio;
-          RadioBox.Group = ToolLib;
-          Circle.Area = UsbDriveBox;
-        </Set>
-      </Ref>
-      <Ref RefName="RadioButtonTextOff" Top="RadioButtonTop + RadioButtonHeight">
-        <Set>
-          Text.Text = SD;
-          RadioBox.Width = RadioDriveWidth;
-          RadioBox.HotSpot = SdDriveRadio;
-          RadioBox.Group = ToolLib;
-          Circle.Area = SdDriveBox;
-        </Set>
-      </Ref>
       <Ref RefName="RadioButtonTextOn" Top="RadioButtonTop" Left="RadioImpExpLeft">
         <Set>
           Text.Text = Import;
@@ -2584,18 +2566,18 @@
       FileNameLeft = 0;
       FileNameWidth = FileDateLeft - FileNameLeft - FileColumnGap;
     </Set>
-    <Rectangle Left="KeySpace" Height="ToolRowHeight + 1" Width="FileRowWidth - KeySpace" Stroke="ToolInfoForeground" StrokeThickness="1">
-      <Rectangle Area="AllText" Top="12" Left="FileTextLeft" Height="SmallTextHeight" Width="FileTextWidth">
-        <Rectangle Area="FileSize" Left="FileSizeLeft" Width="FileSizeWidth" Height="SmallTextHeight"/>
-        <Rectangle Area="FileTime" Left="FileTimeLeft" Width="FileTimeWidth" Height="SmallTextHeight"/>
-        <Rectangle Area="FileDate" Left="FileDateLeft" Width="FileDateWidth" Height="SmallTextHeight"/>
-        <Rectangle Area="FileName" Left="FileNameLeft" Width="FileNameWidth" Height="SmallTextHeight"/>
-      </Rectangle>
-      <Image Left="IconLeft" Top="10" Area="FileIcon" Height="IconSize" Width="IconSize" Source=""/>
-    </Rectangle>
+		<Rectangle Left="KeySpace" Height="ToolRowHeight + 1" Width="FileRowWidth - KeySpace" Stroke="ToolInfoForeground" StrokeThickness="1">
+			<Rectangle Area="AllText" Top="12" Left="FileTextLeft" Height="SmallTextHeight" Width="FileTextWidth">
+				<Rectangle Area="FileSize" Left="FileSizeLeft" Width="FileSizeWidth" Height="SmallTextHeight"/>
+				<Rectangle Area="FileTime" Left="FileTimeLeft" Width="FileTimeWidth" Height="SmallTextHeight"/>
+				<Rectangle Area="FileDate" Left="FileDateLeft" Width="FileDateWidth" Height="SmallTextHeight"/>
+				<Rectangle Area="FileName" Left="FileNameLeft" Width="FileNameWidth" Height="SmallTextHeight"/>
+			</Rectangle>
+			<Image Left="IconLeft" Top="10" Area="FileIcon" Height="IconSize" Width="IconSize" Source=""/>
+		</Rectangle>
   </Canvas>
 
-  <Canvas Name="FileIcons" Type="Overlay" Height="IconSize" ItemWidth="IconSize" ColorDepth="Color16bpp" Fill="ToolLibBackground">
+  <Canvas Name="FileIcons" Area="All" Type="Overlay" Height="IconSize" ItemWidth="IconSize" ColorDepth="Color16bpp" Fill="ToolLibBackground">
     <Item>
       <Image Height="IconSize" Width="IconSize" Source="File128.png"/>
     </Item>
@@ -2614,10 +2596,10 @@
   <Set>
     UpdateHeight = 148;
     UpdateWidth = ScreenWidth;
-    UpdateCtrlsWidth = RadioDriveWidth + KeySpace * 3 + BtnWidth * 2;
+    UpdateCtrlsWidth = KeySpace * 3 + BtnWidth * 2;
     UpdateCtrlsLeft = UpdateWidth - UpdateCtrlsWidth;
     UpdateCtrlHeight = ToolBtnHeight + 25;  <!-- include room for label -->
-    UpdateLoadLeft = RadioDriveWidth + KeySpace;
+    UpdateLoadLeft = KeySpace;
     UpdateCancelLeft = UpdateLoadLeft + BtnWidth + KeySpace;
     UpdateFileBoxWidth = UpdateCtrlsLeft - KeySpace;
     UpdateClearBtnLeft = UpdateCtrlsLeft - KeySpace - ClearBtnWidth - 1;
@@ -2632,6 +2614,10 @@
   </Set>
   <Set ShowValue="UpdateFileListTop">UpdateHeight</Set>
   <Set ShowValue="UpdateFileListHeight">ScreenHeight - UpdateHeight</Set>
+  <Set ShowValue="UpdateButtonLeft">UpdateCtrlsLeft + UpdateLoadLeft</Set>
+  <Set ShowValue="UpdateButtonTop">KeySpace</Set>
+  <Set ShowValue="UpdateButtonWidth">BtnWidth</Set>
+  <Set ShowValue="UpdateButtonHeight">UpdateCtrlHeight</Set>
 
   <Color Name="UpdateBackground" Color="ToolInfoBackground"/>
   <Color Name="UpdateForeground" Color="ToolInfoForeground"/>
@@ -2706,33 +2692,15 @@
   </Canvas>
 
   <Canvas Name="UpdateDialog" Height="UpdateHeight" Width="UpdateWidth" ColorDepth="Color16bpp" Fill="UpdateBackground" WidthMultiple="4">
-    <Rectangle Top="KeySpace" Left="KeySpace" Height="FileEntryHeight" Width="UpdateFileBoxWidth" StrokeThickness="1" Stroke="UpdateForeground">
+    <Rectangle Area="LoadFileName" Top="KeySpace" Left="KeySpace" Height="FileEntryHeight" Width="UpdateFileBoxWidth" StrokeThickness="1" Stroke="UpdateForeground">
       <Rectangle HotSpot="FileName" Group="Update" Height="FileEntryHeight" Width="UpdateFileTextWidth"/>
       <Rectangle Area="FileName" Top="(FileEntryHeight - SmallTextHeight) / 2" Left="EditBoxMargin"
         Height="SmallTextHeight" Width="UpdateFileTextWidth"/>
       <Image HotSpot="ClearFile" Group="Update" Source="Delete128.png" Left="UpdateClearBtnLeft" Top="FileClearBtnTop" Height="ClearBtnHeight" Width="ClearBtnWidth"/>
     </Rectangle>
     <Rectangle Left="UpdateCtrlsLeft" Height="UpdateHeight" Width="UpdateCtrlsWidth">
-      <Ref RefName="RadioButtonTextOn" Top="UpdateRadioButtonTop">
-        <Set>
-          Text.Text = USB;
-          RadioBox.Width = RadioDriveWidth;
-          RadioBox.HotSpot = UsbDriveRadio;
-          RadioBox.Group = Update;
-          Circle.Area = UsbDriveBox;
-        </Set>
-      </Ref>
-      <Ref RefName="RadioButtonTextOff" Top="UpdateRadioButtonTop + RadioButtonHeight">
-        <Set>
-          Text.Text = SD;
-          RadioBox.Width = RadioDriveWidth;
-          RadioBox.HotSpot = SdDriveRadio;
-          RadioBox.Group = Update;
-          Circle.Area = SdDriveBox;
-        </Set>
-      </Ref>
       <Rectangle Area="UpdateButton" Left="UpdateLoadLeft" Top="KeySpace" Width="BtnWidth" Height="UpdateCtrlHeight">
-        <Ref RefName="InspectButton">
+		  <Ref RefName="InspectButton">
           <Set>
             Button.Group = Update;
             Button.HotSpot = UpdateExecute;
@@ -2746,7 +2714,7 @@
         </Set>
       </Ref>
     </Rectangle>
-    <Rectangle Top="CurrentVersionTop" Left="KeySpace" Width="UpdateWidth" Height="SmallTextHeight">
+    <Rectangle Area="CurrentVersion" Top="CurrentVersionTop" Left="KeySpace" Width="UpdateWidth" Height="SmallTextHeight">
       <TextBlock Name="CurrentVersionLabel" Left="0" Font="CalcSmall" Foreground="UpdateForeground">Current Firmware: </TextBlock>
       <Set>
         FirmwareVersionLeft = CurrentVersionLabel.Width;
@@ -2821,15 +2789,20 @@
     NoTouchWidth = ScreenWidth - KeypadLeft;
     NoTouchTitleHeight = 60;
     NoTouchTextHeight = 30;
+	NoTouchBorderWidth = 5;
     NoTouchLine1 = NoTouchTitleHeight;
     NoTouchLine2 = NoTouchLine1 + NoTouchTextHeight;
     NoTouchLine3 = NoTouchLine2 + NoTouchTextHeight;
     NoTouchLine4 = NoTouchLine3 + NoTouchTextHeight;
   </Set>
+	
+  <Set ShowValue="NoTouchBorderWidth">NoTouchBorderWidth</Set>
   <Set ShowValue="NoTouchTop">KeypadTop</Set>
   <Set ShowValue="NoTouchLeft">KeypadLeft</Set>
-  <Canvas Name="NoTouchPanel" Width="NoTouchWidth" Height="NoTouchHeight" ColorDepth="Color16bpp" Fill="ScreenBackColor">
-    <Rectangle HotSpot="HaveMouse" Width="NoTouchWidth" Height="NoTouchHeight" StrokeThickness="5" Stroke="Red">
+  <Color Name="NoTouchBorderColor" Color="Red" ColorDepth="Color16bpp"/>
+
+	<Canvas Name="NoTouchPanel" Width="NoTouchWidth" Height="NoTouchHeight" ColorDepth="Color16bpp" Fill="ScreenBackColor">
+    <Rectangle HotSpot="HaveMouse" Width="NoTouchWidth" Height="NoTouchHeight" StrokeThickness="NoTouchBorderWidth" Stroke="NoTouchBorderColor">
       <TextBlock FontSize="40" Height="NoTouchTitleHeight">Touch Input Not Found</TextBlock>
       <TextBlock FontSize="20" Height="NoTouchTextHeight" Top="NoTouchLine1">You can try cycling power to check again.</TextBlock>
       <TextBlock FontSize="20" Height="NoTouchTextHeight" Top="NoTouchLine2">Readouts are active but cannot be reset.</TextBlock>

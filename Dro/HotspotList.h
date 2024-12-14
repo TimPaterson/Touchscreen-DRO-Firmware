@@ -311,6 +311,8 @@ enum HotspotGroups
 	HOTSPOT_GROUP_FileDisplay,
 
 	#include "Images/Screen.h"
+
+	HOTSPOT_GROUP_LoadGraphics,
 };
 
 //*************************************************************************

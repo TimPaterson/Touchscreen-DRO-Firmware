@@ -726,13 +726,13 @@ namespace RA8876const
 	// 0xCD: Character Control Register 1
 	enum CCR1_Bits
 	{
-		CCR1_CharHeightX_Mask = 0x03,
+		CCR1_CharHeight_Mask = 0x03,
 		CCR1_CharHeightX1 = 0x00,
 		CCR1_CharHeightX2 = 0x01,
 		CCR1_CharHeightX3 = 0x02,
 		CCR1_CharHeightX4 = 0x03,
 
-		CCR1_CharWidthX_Mask = 0x0C,
+		CCR1_CharWidth_Mask = 0x0C,
 		CCR1_CharWidthX1 = 0x00,
 		CCR1_CharWidthX2 = 0x04,
 		CCR1_CharWidthX3 = 0x08,

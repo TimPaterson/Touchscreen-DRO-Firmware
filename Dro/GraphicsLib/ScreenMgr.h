@@ -64,6 +64,16 @@ public:
 		WriteSequentialRegisters(pCanvas, PISA0, CanvasViewRegCount);
 	}
 
+	static void HidePip1()
+	{
+		WriteData(ReadReg(MPWCTR) & ~MPWCTR_Pip1_Mask);
+	}
+
+	static void ShowPip1()
+	{
+		WriteData(ReadReg(MPWCTR) | MPWCTR_Pip1Enable);
+	}
+
 	static void SetPip1Modal(bool fModal)
 	{
 		s_pip1.isModal = fModal;
@@ -89,6 +99,16 @@ public:
 		val = ReadReg(PIPCDEP) & ~PIPCDEP_Pip2Color_Mask;
 		WriteData(val | (pCanvas->GetColorDepth() << PIPCDEP_Pip2Color_Shft));
 		WriteSequentialRegisters(pCanvas, PISA0, CanvasViewRegCount);
+	}
+
+	static void HidePip2()
+	{
+		WriteData(ReadReg(MPWCTR) & ~MPWCTR_Pip2_Mask);
+	}
+
+	static void ShowPip2()
+	{
+		WriteData(ReadReg(MPWCTR) | MPWCTR_Pip2Enable);
 	}
 
 	static void SetPip2Modal(bool fModal)
@@ -138,6 +158,15 @@ public:
 		WriteSequentialRegisters(pCanvas, DT_STR0, ImageRegCount);
 		val = ReadReg(BTE_COLR) & ~BTE_COLR_DestColor_Mask;
 		WriteData(val | (pCanvas->GetColorDepth() << BTE_COLR_DestColor_Shft));
+	}
+
+	static void SetBteDest(const ColorImage *pColorImage)
+	{
+		byte	val;
+
+		WriteSequentialRegisters(pColorImage, DT_STR0, ImageRegCount);
+		val = ReadReg(BTE_COLR) & ~BTE_COLR_DestColor_Mask;
+		WriteData(val | (pColorImage->GetColorDepth() << BTE_COLR_DestColor_Shft));
 	}
 
 	static void SetDrawCanvas(Canvas *pCanvas)
@@ -229,6 +258,16 @@ public:
 	}
 
 	static void FillRect(Canvas *pDst, const Area *pAreaDst, ulong color)
+	{
+		SetBteDest(pDst);
+		SetForeColor(color);
+		WriteReg(BTE_CTRL1, BTE_CTRL1_OpcodeSolidFill);
+		WriteSequentialRegisters(pAreaDst, DT_X0, sizeof *pAreaDst);
+		WriteReg(BTE_CTRL0, BTE_CTRL0_Enable);
+		WaitWhileBusy();
+	}
+
+	static void FillRect(const ColorImage *pDst, const Area *pAreaDst, ulong color)
 	{
 		SetBteDest(pDst);
 		SetForeColor(color);

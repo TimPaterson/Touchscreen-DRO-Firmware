@@ -293,10 +293,10 @@ SetImportExportImages:
 			if (m_isExport)
 			{
 				FileOp.AddDefaultExtension(FileBrowser::GetPathBuf(), ".csv");
-				FileOp.ToolExport(FileBrowser::GetPathBuf(), Files.GetDrive());
+				FileOp.ToolExport(FileBrowser::GetPathBuf());
 			}
 			else
-				FileOp.ToolImport(FileBrowser::GetPathBuf(), Files.GetDrive());
+				FileOp.ToolImport(FileBrowser::GetPathBuf());
 		}
 		break;
 
@@ -318,18 +318,6 @@ SetImportExportImages:
 	case ClearFile:
 		s_editFile.DeleteText();
 		StartEditFile(0);
-		break;
-
-	case UsbDriveRadio:
-		if (!(Files.GetDriveMap() & UsbDriveMap))
-			break;
-		Files.SetDrive(UsbDrive);
-		break;
-
-	case SdDriveRadio:
-		if (!(Files.GetDriveMap() & SdDriveMap))
-			break;
-		Files.SetDrive(SdDrive);
 		break;
 
 	case TimeSet:

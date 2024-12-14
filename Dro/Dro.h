@@ -16,18 +16,18 @@
 #include "FatFileDef.h"
 
 
-#define PROGRAM_VERSION		7
+#define PROGRAM_VERSION		8
 #define FLASH_VERSION		2
 
 // Get graphics and font versions from their respective header files
 #define START_HEADER(x)	static constexpr ulong GraphicsHeaderOffset = x;
-#define FILE_VERSION(x) static constexpr ulong GRAPHICS_VERSION = x;
 #define SIGNATURE(x)	static constexpr ulong GRAPHICS_SIGNATURE = x;
+#define FILE_VERSION(x) static constexpr ulong GRAPHICS_VERSION = x;
 #include "Images/Screen.h"
 
 #define START_HEADER(x)	static constexpr ulong FontHeaderOffset = x;
-#define FILE_VERSION(x) static constexpr ulong FONT_VERSION = x;
 #define SIGNATURE(x)	static constexpr ulong FONT_SIGNATURE = x;
+#define FILE_VERSION(x) static constexpr ulong FONT_VERSION = x;
 #include "Fonts/Fonts.h"
 
 // Debugging options
@@ -42,7 +42,7 @@
 // firmware is programmed into the serial flash instead. This
 // constant switches between these choices to preserve the old code.
 //
-#define UDATE_FROM_VIDEO_RAM	0
+#define UPDATE_FROM_VIDEO_RAM	0
 
 static constexpr double MmPerInch = 25.4;
 static constexpr int UnitFactor = 10000;	// internal units per mm
@@ -63,13 +63,13 @@ void DumpCanvas(uint addr);
 // PA06 - out, console serial TX data (SERCOM 0 pad 2)
 // PA07 - out, backlight PWM (TCC1 WO[1])
 // PA08 - in, supply low (NMI)
-// PA09 - in, MicroSD DOUT/MISO (SERCOM 2 pad 1 & EXINT 9)
-// PA10 - out, MicroSD DIN/MOSI (SERCOM 2 pad 2)
-// PA11 - out, MicroSD SCK (SERCOM 2 pad 3) or Test Point 2
+// PA09 - in, Aux in pin 1
+// PA10 - in, Aux in pin 3
+// PA11 - in, Aux in pin 2
 // PA12 - out, supply low (analog comparator CMP[0])
 // PA13 - in, Z position A (EXINT 13)
 // PA14 - in, Z position B (EXINT 14)
-// PA15 - out, MicroSD CS or Test Point 1
+// PA15 - out, Aux pin 4
 // PA16 - out, RTP DIN/MOSI or CTP SDA (SERCOM 1 pad 0)
 // PA17 - out, RTP SCK or CTP SCL (SERCOM 1 pad 1)
 // PA18 - out, RTP CS
@@ -100,7 +100,7 @@ void DumpCanvas(uint addr);
 // PB14 - in/out, RA8876 DB14
 // PB15 - in/out, RA8876 DB15
 // PB16 - in w/pull-up, Touch IRQ (EXINT 0)
-// PB17 - in, MicroSD card detect (EXINT 1)
+// PB17 - out, Test Point
 // PB22 - out, RA8876 E (TC7 WO[0])
 // PB23 - out, RA8876 C/D
 // PB30 - out, RA8877 R/W
@@ -116,15 +116,13 @@ enum PortAbitMap
 	BacklightPwm_BIT,
 
 	Nmi_BIT,
-	SdMiso_BIT,
-	SdMosi_BIT,
-	SdSck_BIT,
-	TP2_BIT = SdSck_BIT,
+	AuxIn1_BIT,
+	AuxIn3_BIT,
+	AuxIn2_BIT,
 	AcOut_BIT,
 	ZposA_BIT,
 	ZposB_BIT,
-	SdCs_BIT,
-	TP1_BIT = SdCs_BIT,
+	AuxOut4_BIT,
 
 	RtpMosi_BIT,
 	RtpSck_BIT,
@@ -152,13 +150,13 @@ enum PortApins
 	BacklightPwm_PIN =	(1 << BacklightPwm_BIT),
 
 	Nmi_PIN =			(1 << Nmi_BIT),
-	SdMiso_PIN =		(1 << SdMiso_BIT),
-	SdMosi_PIN =		(1 << SdMosi_BIT),
-	SdSck_PIN =			(1 << SdSck_BIT),
+	AuxIn1_PIN =		(1 << AuxIn1_BIT),
+	AuxIn3_PIN =		(1 << AuxIn3_BIT),
+	AuxIn2_PIN =		(1 << AuxIn2_BIT),
 	AcOut_PIN =			(1 << AcOut_BIT),
 	ZposA_PIN =			(1 << ZposA_BIT),
 	ZposB_PIN =			(1 << ZposB_BIT),
-	SdCs_PIN =			(1 << SdCs_BIT),
+	AuxOut4_PIN =		(1 << AuxOut4_BIT),
 
 	RtpMosi_PIN =		(1 << RtpMosi_BIT),
 	RtpSck_PIN =		(1 << RtpSck_BIT),
@@ -174,15 +172,12 @@ enum PortApins
 	UsbDp_PIN =			(1 << UsbDp_BIT),
 	LcdWait_PIN =		(1 << LcdWait_BIT),
 	LcdIrq_PIN =		(1 << LcdIrq_BIT),
-
-	TP1_PIN =			(1 << TP1_BIT),
-	TP2_PIN =			(1 << TP2_BIT),
 };
 
 enum PortBbitMap
 {
 	TouchIrq_BIT = 16,
-	MicroSdCd_BIT,
+	TP_BIT,
 	LcdE_BIT = 22,
 	LcdCD_BIT,
 	LcdRW_BIT = 30,
@@ -193,7 +188,7 @@ enum PortBpins
 {
 	LcdData_PIN =	0xFFFF,
 	TouchIrq_PIN =	(1 << TouchIrq_BIT),
-	MicroSdCd_PIN =	(1 << MicroSdCd_BIT),
+	TP_PIN =		(1 << TP_BIT),
 	LcdE_PIN =		(1 << LcdE_BIT),
 	LcdCD_PIN =		(1 << LcdCD_BIT),
 	LcdRW_PIN =		(1 << LcdRW_BIT),
@@ -223,13 +218,13 @@ union PortAreg
 	struct
 	{
 		byte	b0;
-		byte	Sd;
+		byte	Aux;
 		byte	Touch;
 		byte	Lcd;
 	};
 };
 
-static constexpr int PortASdPos = offsetof(PortAreg, Sd) * 8;
+static constexpr int PortAAuxPos = offsetof(PortAreg, Aux) * 8;
 static constexpr int PortATouchPos = offsetof(PortAreg, Touch) * 8;
 static constexpr int PortALcdPos = offsetof(PortAreg, Lcd) * 8;
 
@@ -237,7 +232,6 @@ typedef PortIoGroup<PortAreg> PortIoA;
 
 enum  PortAregMap
 {
-	SdCs =		(1 << (SdCs_BIT - PortASdPos)),
 	RtpCs =		(1 << (RtpCs_BIT - PortATouchPos)),
 	CtpReset =	(1 << (CtpReset_BIT - PortATouchPos)),
 	LcdWait =	(1 << (LcdWait_BIT - PortALcdPos)),
@@ -245,9 +239,6 @@ enum  PortAregMap
 };
 
 #define PORTA	((volatile PortIoA *)&PORT_IOBUS->Group[0])
-
-inline void SetSdCs() { PORTA->OUTSET.Sd = SdCs; }
-inline void ClearSdCs() { PORTA->OUTCLR.Sd = SdCs; }
 
 inline void SetRtpCs() { PORTA->OUTSET.Touch = RtpCs; }
 inline void ClearRtpCs() { PORTA->OUTCLR.Touch = RtpCs; }
@@ -290,7 +281,6 @@ enum  PortBregMap
 	LcdData16 = 0xFFFF,
 
 	TouchIrq =	(1 << (TouchIrq_BIT - PortBCtrlPos)),
-	MicroSdCd =	(1 << (MicroSdCd_BIT - PortBCtrlPos)),
 	LcdE =		(1 << (LcdE_BIT - PortBCtrlPos)),
 	LcdCD =		(1 << (LcdCD_BIT - PortBCtrlPos)),
 	LcdRW =		(1 << (LcdRW_BIT - PortBCtrlPos)),
@@ -299,7 +289,6 @@ enum  PortBregMap
 
 #define PORTB	((volatile PortIoB *)&PORT_IOBUS->Group[1])
 
-inline int GetSdCd()		{ return PORTB->IN.Ctrl & MicroSdCd; }
 inline int GetTouchIrq()	{ return PORTB->IN.Ctrl & TouchIrq; }
 
 // TouchIrq is temporarily an output for capacitive touch panel
@@ -412,7 +401,24 @@ static constexpr uint PosSensorIrqMask = EI_QposA | EI_QposB |
 
 class ScreenMgr;	// Entirely static
 
+enum ScreenStatus
+{
+	LCD_NotPresent,
+	LCD_InvalidFlash,
+	LCD_Present,	
+};
+
+// The graphics and font data start with with a header to mark the version
+struct DataFileHeader
+{
+	ulong	signature;
+	ulong	version;
+};
+
 extern ScreenMgr Lcd;
+extern byte LcdStatus;
+extern ulong GraphicsVersion;
+extern ulong FontVersion;
 
 //*********************************************************************
 // Timer on TC3.
@@ -447,27 +453,19 @@ extern Console_t Console;
 extern FILE Console_FILE;
 
 //*********************************************************************
-// Test Point -- if enabled, uses SD card pins as output
+// Test Point
 
-#ifdef USE_TEST_POINTS
+#ifdef DEBUG
 
-#define SET_TP1		SetPinsA(TP1_PIN)
-#define CLEAR_TP1	ClearPinsA(TP1_PIN)
-#define TOGGLE_TP1	TogglePinsA(TP1_PIN)
-
-#define SET_TP2		SetPinsA(TP2_PIN)
-#define CLEAR_TP2	ClearPinsA(TP2_PIN)
-#define TOGGLE_TP2	TogglePinsA(TP2_PIN)
+#define SET_TP		SetPinsB(TP_PIN)
+#define CLEAR_TP	ClearPinsB(TP_PIN)
+#define TOGGLE_TP	TogglePinsB(TP_PIN)
 
 #else
 
-#define SET_TP1
-#define CLEAR_TP1
-#define TOGGLE_TP1
-
-#define SET_TP2
-#define CLEAR_TP2
-#define TOGGLE_TP2
+#define SET_TP
+#define CLEAR_TP
+#define TOGGLE_TP
 
 #endif
 

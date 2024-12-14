@@ -10,7 +10,58 @@
 #include "TextField.h"
 
 
-class EditLine : public TextField
+class BufferedLine : public TextFieldFixed
+{
+public:
+	// Base on normal TextField, getting font from flash
+	BufferedLine(Canvas &canvas, const Area &area, char *pBuf, ushort chMax, FontInfo &font, ulong foreColor, ulong backColor):
+		TextFieldFixed(canvas, area, font, foreColor, backColor),
+		m_pBufText{pBuf},
+		m_maxCh{(ushort)(chMax - 1)},
+		m_isFixed{false}
+		{}
+
+	// Base on TextFieldFixed, using built-in fixed font
+	BufferedLine(Canvas &canvas, const Area &area, char *pBuf, ushort chMax, ulong foreColor, ulong backColor, byte ccr0, byte ccr1):
+		TextFieldFixed(canvas, area, foreColor, backColor, ccr0, ccr1),
+		m_pBufText{pBuf},
+		m_maxCh{(ushort)(chMax - 1)},
+		m_isFixed{true}
+		{}
+
+	//*********************************************************************
+	// Public interface
+	//*********************************************************************3
+public:
+	void UpdateBuffer()
+	{
+		ClearArea();
+		m_cntCh = strlen(m_pBufText);
+		ResetPosition();
+		if (m_isFixed)
+			printf(m_pBufText);
+		else
+			WriteString(m_pBufText);
+	}
+
+	void DeleteText()
+	{
+		m_pBufText[0] = '\0';
+		ClearArea();
+	}
+
+	//*********************************************************************
+	// instance (RAM) data
+	//*********************************************************************
+protected:
+	char	*m_pBufText;
+	ushort	m_maxCh;
+	ushort	m_cntCh;
+	bool	m_isFixed;
+};
+
+
+class EditLine : public BufferedLine
 {
 public:
 	static constexpr int EndLinePx = 10000;
@@ -29,8 +80,7 @@ public:
 
 public:
 	EditLine(Canvas &canvas, const Area &area, char *pBuf, ushort chMax, FontInfo &font, ulong foreColor, ulong backColor):
-		TextField(canvas, area, font, foreColor, backColor), m_pBufText{pBuf}, 
-		m_maxCh{(ushort)(chMax - 1)},		
+		BufferedLine(canvas, area, pBuf, chMax, font, foreColor, backColor),
 		m_cursorArea{0, area.Ypos, 1, area.Height}
 		{}
 
@@ -87,12 +137,6 @@ public:
 			pxPos += GetCharWidth(m_pBufText[chPos]);
 
 		MoveCursor(m_pArea->Xpos + pxPos);
-	}
-
-	void DeleteText()
-	{
-		m_pBufText[0] = '\0';
-		ClearArea();
 	}
 
 	EditStatus ProcessKey(uint key)
@@ -274,9 +318,6 @@ protected:
 	// instance (RAM) data
 	//*********************************************************************
 protected:
-	char	*m_pBufText;
-	ushort	m_maxCh;
-	ushort	m_cntCh;
 	ushort	m_cntPx;
 	ushort	m_chPosCur;
 	ushort	m_scrollPosPx;

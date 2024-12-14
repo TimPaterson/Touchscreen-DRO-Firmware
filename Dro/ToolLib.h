@@ -273,7 +273,7 @@ public:
 public:
 	static void ShowFeedRate(double rate)
 	{
-		s_feedRate.PrintDbl("\n%5.0f", rate);
+		s_feedRate.PrintDbl(rate < 10 ? "\n%5.1f" : "\n%4.0f ", rate);
 	}
 
 	static void ShowLatheRpm(uint rpm)
@@ -611,7 +611,8 @@ protected:
 	{
 		switch (reason)
 		{
-		case FileBrowser::SelectionChanged:
+		case FileBrowser::REASON_FileSelected:
+		case FileBrowser::REASON_FolderSelected:
 			// Callback when file/folder selected from list
 			if (m_editMode < EDIT_StartErrors)
 				CheckIfFolder();
@@ -624,17 +625,15 @@ protected:
 			}
 			break;
 
-		case FileBrowser::DriveChanged:
+		case FileBrowser::REASON_DriveStatusChanged:
 			if (m_editMode == EDIT_File)
 				EndEdit(s_editFile);
 
-			if (Files.GetDrive() != -1)
+			if (Files.IsMounted())
 				ClearFileError();
-			//
-			// Fall into DriveStatusChanged
-			//
-		case FileBrowser::DriveStatusChanged:
-			ShowDriveChoice();
+			break;
+
+		default:
 			break;
 		}
 	}
@@ -693,22 +692,6 @@ protected:
 		Lcd.EnablePip1(&ToolImport, 0, 0);
 		FileOp.SetErrorHandler(FileErrorCallback);
 		Files.Open(&s_editFile, ListUpdateCallback);
-	}
-
-	static void ShowDriveChoice()
-	{
-		int		map;
-		int		drive;
-		int		index;
-
-		map = Files.GetDriveMap();
-		drive = Files.GetDrive();
-		// USB
-		index = map & UsbDriveMap ? (drive == UsbDrive ? RADIO_True : RADIO_False) : RADIO_NotAvailable;
-		Lcd.SelectImage(&ToolImport, &ToolImport_Areas.UsbDriveBox, &RadioButtons, index);
-		// SD card
-		index = map & SdDriveMap ? (drive == SdDrive ? RADIO_True : RADIO_False) : RADIO_NotAvailable;
-		Lcd.SelectImage(&ToolImport, &ToolImport_Areas.SdDriveBox, &RadioButtons, index);
 	}
 
 	static void PrintTimeDigits(uint u)

@@ -53,3 +53,5 @@ public:
 		return act;
 	}
 };
+
+extern UsbDro UsbPort;

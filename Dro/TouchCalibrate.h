@@ -8,9 +8,10 @@
 #pragma once
 
 #include "ScreenMgr.h"
+#include "UsbDro.h"
 
 
-class TouchCalibrate_t : TouchCanvas, ScreenMgr
+class TouchCalibrate_t : public TouchCanvas, ScreenMgr
 {
 	// Calibration target position
 	static constexpr int TouchEdgeOffsetX = ScreenWidth / 10;
@@ -90,7 +91,7 @@ class TouchCalibrate_t : TouchCanvas, ScreenMgr
 		int		y;
 	};
 
-	// Imitate HotpostList
+	// Imitate HotspotList
 	struct CalibrateHotspotList
 	{
 		ushort	count;
@@ -115,7 +116,7 @@ public:
 		int		flags;
 		HotspotData	*pSpot;
 
-		AllocIfNeeded(ScreenHeight);
+		AllocIfNeeded();
 		m_oldImage = GetMainImage();
 		FillRect(this, GetViewArea(), BackColor);
 		SetMainImage(this);
@@ -165,7 +166,10 @@ ShowButtons:
 		} // for(;;) repeat calibration
 
 Abort:
-		DisableGraphicsCursor();				
+		if (Mouse.IsLoaded())
+			Lcd.EnableGraphicsCursor(GTCCR_GraphicCursorSelect1);
+		else
+			DisableGraphicsCursor();
 		Eeprom.StartSave();
 		SetMainImage(m_oldImage);
 	}
@@ -246,6 +250,8 @@ Restart:
 		// Held on target for required time, use final value
 		point.x = pTouch->GetRawX();
 		point.y = pTouch->GetRawY();
+		
+		DEBUG_PRINT("Raw touch position: %i, %i\n", point.x, point.y);
 
 		// Now erase the target
 		DrawTarget(target, true);
@@ -320,7 +326,6 @@ Restart:
 	int GetTouch(bool fShow = false)
 	{
 		uint	flags;
-		HotspotData	*pSpot;
 
 		while (!(pTouch->Process()))
 		{
@@ -330,15 +335,15 @@ Restart:
 				Console.DiscardReadBuf();
 				return AbortFlag;
 			}
+			
+			if (UsbPort.Process() == HOSTACT_MouseChange)
+			{
+				if (Mouse.GetButtons().btnStart & BUTTON_Left)
+					return AbortFlag;
+			}
 		}
 		
 		flags = pTouch->GetTouch();
-		if (flags & TOUCH_Start)
-		{
-			pSpot = TestHit(pTouch->GetX(), pTouch->GetY());
-			if (pSpot != NULL && pSpot != NOT_ON_CANVAS && pSpot->id == HOTSPOT_Done)
-				return AbortFlag;
-		}
 
 		// show cursor at touch position
 		if (fShow && flags & TOUCH_Touched)
@@ -393,6 +398,7 @@ protected:
 class TouchCalibrate
 {
 public:
+	static TouchCanvas *GetCanvas()					{ return &s_calibrate; }
 	static void Open(bool fShowButtons = false)		{ s_calibrate.Open(fShowButtons); }
 protected:
 	inline static TouchCalibrate_t	s_calibrate;

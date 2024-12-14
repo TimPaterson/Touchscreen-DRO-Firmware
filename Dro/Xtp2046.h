@@ -126,13 +126,11 @@ public:
 
 	bool Process()
 	{
-		ushort	rawZ;
-		
 		if (!m_tmr.CheckInterval_ticks(m_scanTicks))
 			return false;
 
-		//if (GetRtpPenIrq() == 0)
-		rawZ = ReadValue(RTP_ReadZ1);
+		//if (GetTouchIrq() == 0)
+		ushort rawZ = ReadValue(RTP_ReadZ1);
 		if (rawZ >= m_minZtouch)
 		{
 			// Touching

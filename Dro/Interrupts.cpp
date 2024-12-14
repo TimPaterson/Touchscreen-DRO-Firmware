@@ -23,11 +23,14 @@ DEFINE_I2C_ISR(SERCOM1, CapTouch)
 
 void NonMaskableInt_Handler()
 {
+	SET_TP;
+
 	EIC->NMIFLAG.reg = EIC_NMIFLAG_NMI;
-	// disable NMI until we've done with EEPROM
+	// disable NMI until we're done with EEPROM
 	EIC->NMICTRL.reg = EIC_NMICTRL_NMISENSE_NONE;
 	
 	PowerDown::Save();
+	CLEAR_TP;
 }
 
 //****************************************************************************

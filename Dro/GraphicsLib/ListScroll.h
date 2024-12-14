@@ -31,21 +31,23 @@ public:
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #pragma GCC diagnostic ignored "-Wuninitialized"
+
+#define VIEW_HEIGHT	((height / lineHeight + 2 * ExtraLines + 2) * lineHeight)
+
 	ListScroll(ushort width, ushort height, ushort lineHeight, ColorDepths depth, byte HotspotGroup) :
 		TouchCanvas(0, width, height, width, depth, (HotspotList *)&m_hotSpots),
 		m_lineHeight{lineHeight}, m_hotSpots{ 2, {
 			// Array of Hotspots: the display area, and the scroll thumb
-			{0, 0, (ushort)(m_viewWidth - ScrollBarWidth - 1), (ushort)(m_imageHeight - 1), 
+			{0, 0, (ushort)(m_viewWidth - ScrollBarWidth - 1), (ushort)(VIEW_HEIGHT - 1), 
 				{ScrollDisplayArea, HotspotGroup}},
-			{(ushort)(m_viewWidth - ScrollThumbWidth), 0, (ushort)(m_viewWidth - 1), (ushort)(m_imageHeight - 1), 
+			{(ushort)(m_viewWidth - ScrollThumbWidth), 0, (ushort)(m_viewWidth - 1), (ushort)(VIEW_HEIGHT - 1), 
 				{ScrollThumbArea, HotspotGroup}}
 		}}
 	{
 		m_extraLineCnt = ExtraLines;
 		m_lineViewCnt = height / lineHeight;
 		m_lineCntCanvas = m_lineViewCnt + 2 * ExtraLines + 2;
-		height = m_lineCntCanvas * lineHeight;
-		m_imageHeight = height;
+		m_imageHeight = m_lineCntCanvas * lineHeight;
 	}
 #pragma GCC diagnostic pop
 
@@ -353,6 +355,9 @@ protected:
 	virtual void FillLine(int lineNum, Area *pArea) = 0;
 	virtual void LineSelected(int lineNum) = 0;
 
+	//*********************************************************************
+	// instance (RAM) data
+	//*********************************************************************
 protected:
 	int		m_posCur;
 	int		m_posMax;

@@ -150,12 +150,22 @@ public:
 					// Touching
 					ProcessRaw(m_inBuf.touch.Coordinates[0].X, m_inBuf.touch.Coordinates[0].Y);
 					IsTouched(true);
+					if (m_noTouchCnt == 1)
+					{
+						// The panel dropped the touch for 1 cycle. Prevent it from
+						// setting TOUCH_Start
+						IsTouched(true);	// clear TOUCH_Start
+						DEBUG_PRINT("cleared CTP stutter\n");
+					}
+					m_noTouchCnt = 0;
 					return true;
 				}
 			}
 		
 			// Not touching
 			IsTouched(false);
+			if (m_noTouchCnt < 0xFF)
+				m_noTouchCnt++;
 			return true;
 		
 		case I2CSTATE_ResetFlag:
@@ -276,7 +286,8 @@ protected:
 	// instance (RAM) data
 	//*********************************************************************
 protected:
-	uint	m_i2cState;
+	byte	m_i2cState;
+	byte	m_noTouchCnt;
 	union
 	{
 		 byte	idBytes[4];

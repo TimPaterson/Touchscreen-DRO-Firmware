@@ -155,7 +155,7 @@ FlashWriteReady:
 			OP_STATE(mount, ready)
 				DEBUG_PRINT("Complete\n");
 				OpDone();
-				Files.DriveMountComplete(m_drive);
+				FileBrowser::DriveMountComplete(m_drive);
 			END_STATE
 
 			//*************************************************************
@@ -318,7 +318,7 @@ ImportClose:
 					// Zero-length name means we're done
 EndEnum:
 					Close(m_hFile);
-					Files.FolderEnumDone(folder.cnt);
+					FileBrowser::FolderEnumDone(folder.cnt);
 					OP_DONE;
 				}
 				folder.cbName = status;	// remember length
@@ -394,7 +394,7 @@ NextFolder:
 			//*************************************************************
 			// Read firmware into video RAM
 
-#if UDATE_FROM_VIDEO_RAM
+#if UPDATE_FROM_VIDEO_RAM
 			OP_STATE(update, seek)
 				TO_STATE(update, read);
 ReadMore:

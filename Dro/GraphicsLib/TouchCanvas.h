@@ -13,7 +13,7 @@
 #define NOT_ON_CANVAS	((HotspotData *)-1)
 
 
-enum ColorDepths
+enum ColorDepths : byte
 {
 	Color8bpp,
 	Color16bpp,
@@ -63,6 +63,7 @@ public:
 public:
 	byte GetColorDepth() const	{ return m_colorDepth; }
 	Area *GetViewArea()			{ return (Area *)&m_viewPosX; }
+	bool AllocIfNeeded()		{ return AllocIfNeeded(m_viewHeight); }
 	
 public:
 	void SetViewPos(uint x, uint y)
@@ -149,7 +150,7 @@ public:
 		Canvas(addr, width, height, stride, depth),  m_pSpots{list} {}
 
 public:
-	void SetHitList(HotspotList *list) { m_pSpots = list; }
+	void SetHotspotList(const void *pList) { m_pSpots = (HotspotList *)pList; }
 
 	HotspotData *TestHit(int x, int y) NO_INLINE_ATTR
 	{

@@ -356,8 +356,7 @@ typedef byte dat_t;
 		WriteRegXY(F_CURX0, x, y);
 	}
 
-	// This used by printf
-	static void WriteChar(void *pv, char ch)
+	static void WriteChar(char ch)
 	{
 		uint	reg;
 
@@ -367,6 +366,12 @@ typedef byte dat_t;
 		WriteReg(MRWDP, ch);
 		WaitWhileBusy();
 		WriteReg(ICR, reg);
+	}
+
+	// This used by printf
+	static void WriteCharPrintf(void *pv, char ch)
+	{
+		WriteChar(ch);
 	}
 
 	static void WriteString(const char *psz)

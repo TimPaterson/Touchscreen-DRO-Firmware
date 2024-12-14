@@ -20,15 +20,17 @@ class UpdateMgr
 
 	static constexpr int FlashRowSize = FLASH_PAGE_SIZE * NVMCTRL_ROW_PAGES;
 
+public:
 	enum EditMode
 	{
 		EDIT_None,
 		EDIT_File,
-		EDIT_Inspect,
+		EDIT_Update,
 		EDIT_HeaderError,
 		EDIT_FileError,
 	};
 
+private:
 	enum UpdateState
 	{
 		UPDT_None,
@@ -51,6 +53,13 @@ class UpdateMgr
 	// Public interface
 	//*********************************************************************3
 public:
+	static byte *GetUpdateBuffer()			{ return s_updateBuffer; }
+	static uint GetFirmwareVersion()		{ return s_vFirmware; }
+	static uint GetGraphicsVersion()		{ return s_vGraphics; }
+	static uint GetFontsVersion()			{ return s_vFonts; }
+	static void SetLoadMode(EditMode mode)	{ s_editMode = mode; }
+
+public:
 	static void Open()
 	{
 		Lcd.EnablePip1(&UpdateDialog, 0, 0);
@@ -69,8 +78,6 @@ public:
 		Lcd.DisablePip2();
 	}
 	
-	static byte *GetUpdateBuffer()	{ return s_updateBuffer; }
-
 	static void UpdateAction(uint spot, int x, int)
 	{
 		switch (spot)
@@ -86,18 +93,6 @@ public:
 		case ClearFile:
 			s_editFile.DeleteText();
 			StartEdit(0);
-			break;
-
-		case UsbDriveRadio:
-			if (!(Files.GetDriveMap() & UsbDriveMap))
-				break;
-			Files.SetDrive(UsbDrive);
-			break;
-
-		case SdDriveRadio:
-			if (!(Files.GetDriveMap() & SdDriveMap))
-				break;
-			Files.SetDrive(SdDrive);
 			break;
 
 		case UpdateCancel:
@@ -129,7 +124,7 @@ public:
 			else
 			{
 				// Read and display version info
-				FileOp.ReadUpdateHeader(FileBrowser::GetPathBuf(), Files.GetDrive());
+				FileOp.ReadUpdateHeader(FileBrowser::GetPathBuf());
 			}
 			break;
 		}
@@ -157,9 +152,6 @@ public:
 		UpdateSection	*pGraphicsSection;
 		UpdateSection	*pFontsSection;
 		uint	versionMap;
-		uint	vFirmware;
-		uint	vGraphics;
-		uint	vFonts;
 		ulong	cbTotal;
 
 		// Verify this is a valid update file
@@ -179,19 +171,19 @@ public:
 					if (pSection->dataSize > FLASH_SIZE)
 						goto InvalidHeader;
 					pFirmwareSection = pSection;
-					vFirmware = pSection->progVersion;
+					s_vFirmware = pSection->progVersion;
 					versionMap |= SECMAP_Firmware;
 					break;
 
 				case DroGraphicsId:
 					pGraphicsSection = pSection;
-					vGraphics = pSection->progVersion;
+					s_vGraphics = pSection->progVersion;
 					versionMap |= SECMAP_Graphics;
 					break;
 
 				case DroFontId:
 					pFontsSection = pSection;
-					vFonts = pSection->progVersion;
+					s_vFonts = pSection->progVersion;
 					versionMap |= SECMAP_Fonts;
 					break;
 
@@ -204,20 +196,24 @@ public:
 
 				if (versionMap == SECMAP_All)
 				{
-					if (s_editMode == EDIT_Inspect)
+					if (s_editMode == EDIT_Update)
 					{
 						// Perform update
 						s_pFirmwareSection = pFirmwareSection;
 						cbTotal = pFirmwareSection->dataSize;
 
 						// See if we're leaving some out
-						if (!s_fWriteAll && pGraphicsSection->progVersion == GRAPHICS_VERSION)
+						if (!s_fWriteAll && pGraphicsSection->progVersion == GraphicsVersion)
+						{
 							pGraphicsSection = NULL;
+						}
 						else
 							cbTotal += pGraphicsSection->dataSize;
 
-						if (!s_fWriteAll && pFontsSection->progVersion == FONT_VERSION)
+						if (!s_fWriteAll && pFontsSection->progVersion == FontVersion)
+						{
 							pFontsSection = NULL;
+						}
 						else
 							cbTotal += pFontsSection->dataSize;
 
@@ -227,7 +223,7 @@ public:
 						s_progress.SetValue(0);
 						FileOp.SetProgressBar(&s_progress);
 
-#if UDATE_FROM_VIDEO_RAM
+#if UPDATE_FROM_VIDEO_RAM
 						// Step 1: Read program into video RAM
 						FileOp.ReadFirmware(RamUpdateStart, pFirmwareSection->dataSize, pFirmwareSection->dataStart, hFile);
 #else
@@ -239,9 +235,7 @@ public:
 					else
 					{
 						FatSys::Close(hFile);
-						SetEditMode(EDIT_Inspect);
-						Lcd.CopyRect(&UpdateDialog, &UpdateDialog_Areas.UpdateLabel, &UpdateLabel);
-						DisplayVersions(&UpdateDialog_Areas.UpdateFirmware, vFirmware, vGraphics, vFonts);
+						FileBrowser::UpdateStatusChange(FileBrowser::REASON_HeaderLoaded);
 					}
 					return;
 				}
@@ -251,13 +245,11 @@ public:
 InvalidHeader:
 		// Invalid header
 		FatSys::Close(hFile);
-		SetEditMode(EDIT_HeaderError);
-		s_versionText.SetArea(UpdateDialog_Areas.ProgressBar);
-		s_versionText.WriteString(s_InvalidUpdateMsg);
+		FileBrowser::UpdateStatusChange(FileBrowser::REASON_InvalidHeader);
 	};
 #pragma GCC diagnostic pop
 
-#if UDATE_FROM_VIDEO_RAM
+#if UPDATE_FROM_VIDEO_RAM
 	static void ReadUpdateComplete(uint hFile)
 	{
 		s_updateState = UPDT_Graphics;
@@ -272,7 +264,7 @@ InvalidHeader:
 	{
 		switch (s_updateState)
 		{
-#if !UDATE_FROM_VIDEO_RAM
+#if !UPDATE_FROM_VIDEO_RAM
 		case UPDT_Firmware:
 			s_updateState = UPDT_Graphics;
 			if (s_pGraphicsSection != NULL)
@@ -296,7 +288,7 @@ InvalidHeader:
 			//
 		case UPDT_Fonts:
 			FatSys::Close(hFile);
-#if UDATE_FROM_VIDEO_RAM
+#if UPDATE_FROM_VIDEO_RAM
 			PrepFirmwareUpdate(RamUpdateStart);
 #else
 			PrepFirmwareUpdate(FlashUpdateStart);
@@ -311,6 +303,20 @@ InvalidHeader:
 			printf("complete.\n");
 			break;
 		}
+	}
+
+	static void SetEditMode(EditMode mode)
+	{
+		if (s_editMode == mode)
+			return;
+
+		s_versionText.SetArea(UpdateDialog_Areas.ProgressBar);
+		s_versionText.ClearArea();
+
+		s_editMode = mode;
+
+		Lcd.SelectImage(&UpdateDialog, &UpdateDialog_Areas.UpdateButton, 
+			&InspectUpdate, s_editMode == EDIT_Update);
 	}
 
 	//*********************************************************************
@@ -354,40 +360,37 @@ protected:
 	{
 		switch (reason)
 		{
-		case FileBrowser::SelectionChanged:
+		case FileBrowser::REASON_FileSelected:
+		case FileBrowser::REASON_FolderSelected:
 			// Callback when file/folder selected from list
 			if (s_editMode == EDIT_FileError)
 				ClearFileError();
 			SetEditMode(EDIT_None);
 			break;
 
-		case FileBrowser::DriveChanged:
+		case FileBrowser::REASON_DriveStatusChanged:
 			if (s_editMode == EDIT_File)
 				EndEdit();
 
-			if (Files.GetDrive() != -1)
+			if (Files.IsMounted())
 				ClearFileError();
-			//
-			// Fall into DriveStatusChanged
-			//
-		case FileBrowser::DriveStatusChanged:
-			ShowDriveChoice();
+			break;
+
+		case FileBrowser::REASON_HeaderLoaded:
+			SetEditMode(EDIT_Update);
+			Lcd.CopyRect(&UpdateDialog, &UpdateDialog_Areas.UpdateLabel, &UpdateLabel);
+			DisplayVersions(&UpdateDialog_Areas.UpdateFirmware, s_vFirmware, s_vGraphics, s_vFonts);
+			break;
+
+		case FileBrowser::REASON_InvalidHeader:
+			SetEditMode(EDIT_HeaderError);
+			s_versionText.SetArea(UpdateDialog_Areas.ProgressBar);
+			s_versionText.WriteString(s_InvalidUpdateMsg);
+			break;
+
+		default:
 			break;
 		}
-	}
-
-	static void SetEditMode(EditMode mode)
-	{
-		if (s_editMode == mode)
-			return;
-
-		s_versionText.SetArea(UpdateDialog_Areas.ProgressBar);
-		s_versionText.ClearArea();
-
-		s_editMode = mode;
-
-		Lcd.SelectImage(&UpdateDialog, &UpdateDialog_Areas.UpdateButton, 
-			&InspectUpdate, s_editMode == EDIT_Inspect);
 	}
 
 	static void DisplayVersions(const Area *pAreas, uint firmwareVersion, uint graphicsVersion, uint fontsVersion) NO_INLINE_ATTR
@@ -400,22 +403,6 @@ protected:
 		s_versionText.printf("%u", fontsVersion);
 	}
 
-	static void ShowDriveChoice()
-	{
-		int		map;
-		int		drive;
-		int		index;
-
-		map = Files.GetDriveMap();
-		drive = Files.GetDrive();
-		// USB
-		index = map & UsbDriveMap ? (drive == UsbDrive ? RADIO_True : RADIO_False) : RADIO_NotAvailable;
-		Lcd.SelectImage(&UpdateDialog, &UpdateDialog_Areas.UsbDriveBox, &RadioButtons, index);
-		// SD card
-		index = map & SdDriveMap ? (drive == SdDrive ? RADIO_True : RADIO_False) : RADIO_NotAvailable;
-		Lcd.SelectImage(&UpdateDialog, &UpdateDialog_Areas.SdDriveBox, &RadioButtons, index);
-	}
-
 	static void ShowVersionMatch()
 	{
 		Lcd.SelectImage(&UpdateDialog, &UpdateDialog_Areas.VersionMatch, &UpdateCheck, s_fWriteAll);
@@ -424,7 +411,7 @@ protected:
 	static void ClearFileError()
 	{
 		SetEditMode(EDIT_None);
-		Files.FileError();
+		FileBrowser::FileError();
 	}
 
 	static int FileError(int err)
@@ -442,7 +429,7 @@ protected:
 	{
 		WDT->CTRL.reg = 0;	// turn off WDT
 
-#if UDATE_FROM_VIDEO_RAM
+#if UPDATE_FROM_VIDEO_RAM
 		// Queue up RA8876 data port
 		Lcd.WriteReg(AW_COLOR, AW_COLOR_AddrModeLinear | DATA_BUS_WIDTH);
 		Lcd.WriteReg32(CURH0, addr);
@@ -457,7 +444,7 @@ protected:
 	//*********************************************************************
 protected:
 
-#if !UDATE_FROM_VIDEO_RAM
+#if !UPDATE_FROM_VIDEO_RAM
 	RAMFUNC_ATTR static uint SerialReadByte()
 	{
 		uint val = Lcd.SerialReadByteInline();
@@ -472,11 +459,12 @@ protected:
 	RAMFUNC_ATTR NO_INLINE_ATTR static void UpdateFirmware(int cb)
 	{
 		ushort	*pFlash;
+		ushort	*pBuf = NULL;
 
 		pFlash = NULL;	// start programming at address zero
 		__disable_irq();
 		
-#if !UDATE_FROM_VIDEO_RAM
+#if !UPDATE_FROM_VIDEO_RAM
 		// Pump out the response to command bytes
 		for (int i = 0; i < 5; i++)
 			SerialReadByte();
@@ -488,19 +476,39 @@ protected:
 			if (((int)pFlash & (FlashRowSize - 1)) == 0)
 			{
 				Nvm::EraseRowReady(pFlash);
+
+				// Load entire flash row into buffer while erasing.
+				pBuf = (ushort *)&s_updateBuffer;
+				for (int i = 0; i < FlashRowSize / 2; i++)
+				{
+#if UPDATE_FROM_VIDEO_RAM
+					*pBuf++ = Lcd.ReadData16Inline();
+#else
+					uint val = SerialReadByte();
+					*pBuf++ = (SerialReadByte() << 8) + val;
+#endif
+				}
+
+WaitErase:
 				Nvm::WaitReadyInline();
+
+				// Verify the page is erased
+				for (int i = 0; i < FlashRowSize / 2; i++)
+				{
+					if (pFlash[i] != 0xFFFF)
+					{
+						WriteByte('E');
+						Show((uint)pFlash / FlashRowSize);
+						Nvm::EraseRowReady(pFlash);
+						goto WaitErase;
+					}
+				}
+				pBuf = (ushort *)&s_updateBuffer;
 			}
 
 			// Copy the data 16 bits at a time
 			for (int i = FLASH_PAGE_SIZE; i > 0 && cb > 0; i -= 2, cb -= 2)
-			{
-#if UDATE_FROM_VIDEO_RAM
-				*pFlash++ = Lcd.ReadData16Inline();
-#else
-				uint val = SerialReadByte();
-				*pFlash++ = (SerialReadByte() << 8) + val;
-#endif
-			}
+				*pFlash++ = *pBuf++;
 
 			// Write the page
 			Nvm::WritePageReady();
@@ -509,11 +517,12 @@ protected:
 		NVIC_SystemReset();
 	}
 
-#ifdef DEBUG
+#if	defined(DEBUG)
 	RAMFUNC_ATTR NO_INLINE_ATTR static void WriteByte(byte ch)
 	{
-		while (!SERCOM0->USART.INTFLAG.bit.DRE);
-		SERCOM0->USART.DATA.reg = ch;
+		Console.WriteByteNoBuf(ch);
+		//while (!SERCOM0->USART.INTFLAG.bit.DRE);
+		//SERCOM0->USART.DATA.reg = ch;
 	}
 
 	RAMFUNC_ATTR NO_INLINE_ATTR static void WriteDigit(byte digit)
@@ -534,7 +543,8 @@ protected:
 		WriteByte('\n');
 	}
 #else
-inline void Show(int block) {}
+static inline void Show(int block) {}
+static inline void WriteByte(byte ch) {}
 #endif
 
 	//*********************************************************************
@@ -556,6 +566,9 @@ protected:
 	inline static byte	s_editMode;
 	inline static byte	s_updateState;
 	inline static bool	s_fWriteAll;
+	inline static uint	s_vFirmware;
+	inline static uint	s_vGraphics;
+	inline static uint	s_vFonts;
 	inline static UpdateSection	*s_pFirmwareSection;
 	inline static UpdateSection	*s_pGraphicsSection;
 	inline static UpdateSection	*s_pFontsSection;

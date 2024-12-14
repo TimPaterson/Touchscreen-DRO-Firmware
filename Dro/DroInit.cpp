@@ -83,11 +83,11 @@ void Init()
 	// TouchIrq_PIN input set high to pull-up
 	// CtpReset_PIN (output) is also RtpMiso_PIN (input). We're setting it as
 	// the output for now, but in moment we'll switch it to the SERCOM1 mux.
-	SetPinsA(SdCs_PIN | RtpCs_PIN | CtpReset_PIN);
+	SetPinsA(RtpCs_PIN | CtpReset_PIN);
 	SetPinsB(LcdCs_PIN | TouchIrq_PIN);
 	// Set port pin direction (1 = output)
-	DirWritePinsA(SdCs_PIN /*also TP1_PIN*/ | RtpCs_PIN | CtpReset_PIN | TP2_PIN);
-	DirWritePinsB(LcdData_PIN | LcdE_PIN | LcdCD_PIN | LcdRW_PIN | LcdCs_PIN);
+	DirWritePinsA(RtpCs_PIN | CtpReset_PIN);
+	DirWritePinsB(LcdData_PIN | LcdE_PIN | LcdCD_PIN | LcdRW_PIN | LcdCs_PIN | TP_PIN);
 	// Set all inputs to continuously sample
 	PORT->Group[0].CTRL.reg = 0xFFFFFFFF;
 	PORT->Group[1].CTRL.reg = 0xFFFFFFFF;
@@ -103,7 +103,6 @@ void Init()
 	// This is on MUX channel A
 	SetPortMuxConfigA(PORT_MUX_A, PORT_WRCONFIG_INEN, Nmi_PIN | LcdWait_PIN | LcdIrq_PIN | 
 		QposA_PIN | QposB_PIN | ZposA_PIN | ZposB_PIN | YposA_PIN | YposB_PIN | XposA_PIN | XposB_PIN);
-	SetPortMuxConfigB(PORT_MUX_A, PORT_WRCONFIG_INEN, MicroSdCd_PIN);
 	SetPortMuxConfigB(PORT_MUX_A, PORT_WRCONFIG_INEN | PORT_WRCONFIG_PULLEN, TouchIrq_PIN);
 
 	// Set up Analog Comparator input on PA04
@@ -115,13 +114,8 @@ void Init()
 	SetPortMuxA(PORT_MUX_C, RtpMosi_PIN | RtpSck_PIN | RtpMiso_PIN);
 
 	// Set up SERCOM0 on PA05 (RX, pad 1) and PA06 (TX, pad 2)
-	// Set up SERCOM2 on PA09 (MISO, pad1), PA10 (MOSI, pad 2), PA11 (SCK, pad 3)
 	// This is on MUX channel D
-	#ifdef USE_TEST_POINTS
-	SetPortMuxA(PORT_MUX_D, ConsoleRx_PIN | ConsoleTx_PIN | SdMiso_PIN | SdMosi_PIN);
-	#else
-	SetPortMuxA(PORT_MUX_D, ConsoleRx_PIN | ConsoleTx_PIN | SdMiso_PIN | SdMosi_PIN | SdSck_PIN);
-	#endif
+	SetPortMuxA(PORT_MUX_D, ConsoleRx_PIN | ConsoleTx_PIN);
 	
 	// Set up TCC1 output W0[1] on PA07
 	// This is on MUX channel E

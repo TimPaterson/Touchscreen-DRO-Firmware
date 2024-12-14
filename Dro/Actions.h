@@ -13,6 +13,7 @@
 #include "ToolLib.h"
 #include "TouchCalibrate.h"
 #include "UpdateMgr.h"
+#include "LoadGraphics.h"
 
 
 class Actions
@@ -112,6 +113,21 @@ public:
 		}
 	}
 
+	static double GetCalcValue()
+	{
+		return fabs(ToValueStateClear());	// negative values not allowed
+	}
+
+	static void SetCalcValue(double val)
+	{
+		if (val != 0)
+			ToValueState(val);
+	}
+
+	//*********************************************************************
+	// Key function dispatcher
+	//*********************************************************************
+protected:
 	static void TakeAction(int x, int y)
 	{
 		HotspotData	*pSpot;
@@ -152,6 +168,10 @@ public:
 
 		case HOTSPOT_GROUP_Update:
 			UpdateMgr::UpdateAction(spot, x, y);
+			return;
+
+		case HOTSPOT_GROUP_LoadGraphics:
+			LoadGraphics::LoadGraphicsAction(spot, x, y);
 			return;
 
 		case HOTSPOT_GROUP_TimeSet:
@@ -587,12 +607,15 @@ SetRpm:
 
 			case TouchCal:
 				// touch calibrations save changes to EEPROM
-				TouchCalibrate::Open(true);
+				// If mouse in use, go directly to calibration
+				TouchCalibrate::Open(!Mouse.IsLoaded());
+				s_isSettingsShown = false;
 				break;
 
 			case FirmwareUpdate:
 				Eeprom.StartSave();	// save all changes
 				UpdateMgr::Open();
+				s_isSettingsShown = false;
 				break;
 
 			case HaveMouse:
@@ -617,18 +640,6 @@ SetRpm:
 			FormatValue(s_arg1);
 			s_CalcText.printf("%s %c %s", s_arFormatBuf, s_op, pStr);
 		}
-	}
-
-public:
-	static double GetCalcValue()
-	{
-		return fabs(ToValueStateClear());	// negative values not allowed
-	}
-
-	static void SetCalcValue(double val)
-	{
-		if (val != 0)
-			ToValueState(val);
 	}
 
 	//*********************************************************************
@@ -867,7 +878,7 @@ protected:
 	};
 	inline static NumberLine s_CalcDisplay{MainScreen, MainScreen_Areas.CalcDisplay,
 		FONT_Calculator, ScreenForeColor, CalcBackColor};
-	inline static TextLine	s_CalcText{MainScreen, MainScreen_Areas.CalcText,
+	inline static TextField	s_CalcText{MainScreen, MainScreen_Areas.CalcText,
 		FONT_CalcSmall, ScreenForeColor, CalcBackColor};
 	inline static NumberLineBlankZ s_SettingDisplay{SettingsScreen, SettingsScreen_Areas.MaxRpm,
 		FONT_SettingsFont, SettingForeColor, SettingBackColor};

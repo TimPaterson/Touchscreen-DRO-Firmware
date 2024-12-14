@@ -330,10 +330,16 @@
     <Compile Include="KeyboardMgr.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="LoadGraphics.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="PowerDown.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="SerialMem.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="SplashScreen.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="ToolLib.cpp">
@@ -358,9 +364,6 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="FatFileDef.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="FatFileSd.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="FontInfo.c">

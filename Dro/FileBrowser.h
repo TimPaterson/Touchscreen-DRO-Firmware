@@ -11,25 +11,6 @@
 #include "ListScroll.h"
 #include "FileOperations.h"
 
-static void FatDriveStatusChange(int drive, int status);
-
-
-enum DriveList
-{
-	UsbDrive,
-	SdDrive,
-
-	UsbDriveMap = 1 << UsbDrive,
-	SdDriveMap = 1 << SdDrive,
-};
-
-enum RadioButtonImages
-{
-	RADIO_False,
-	RADIO_True,
-	RADIO_NotAvailable,
-};
-
 
 class FileBrowser : public ListScroll
 {
@@ -42,100 +23,64 @@ public:
 public:
 	enum NotifyReason
 	{
-		SelectionChanged,
-		DriveStatusChanged,
-		DriveChanged,
+		REASON_FileSelected,
+		REASON_FolderSelected,
+		REASON_DriveStatusChanged,
+		REASON_HeaderLoaded,
+		REASON_InvalidHeader,
 	};
 
 	typedef void UpdateNotify(NotifyReason reason);
 
 public:
-	int GetDriveMap()	{ return m_driveMap; }
-	int GetDrive()		{ return m_curDrive; }
 
 public:
 	static char *GetPathBuf()		{ return s_bufPath; }
 	static ushort GetPathBufSize()	{ return sizeof s_bufPath; }
+	static bool IsMounted()			{ return s_curBrowser->m_isMounted; }
 
 public:
-	void Open(EditLine *pEdit, UpdateNotify *pfnNotify, uint height = FileListHeight)
+	void Open(BufferedLine *pBufLine, UpdateNotify *pfnNotify, uint height = FileListHeight)
 	{
-		int		drive;
-		uint	map;
-
-		m_pEdit = pEdit;
+		Init();		// initialize ListScroll
+		s_curBrowser = this;
+		m_pBufLine = pBufLine;
 		m_pfnNotify = pfnNotify;
 		SetViewHeight(height);
 		Lcd.EnablePip2(this, 0, ScreenHeight - height);
-		// See what drives are available
-		for (drive = 0, map = 0; drive < FAT_NUM_DRIVES; drive++)
-		{
-			if (FatSys::IsDriveMounted(drive))
-				map |= 1 << drive;
-		}
-		m_driveMap = map;
 		FatSys::SetStatusNotify(FatDriveStatusChange);
-		// If drive is valid, notify that drive map was updated
-		drive = m_curDrive;
-		if (SetDrive(drive) == drive && pfnNotify != NULL)
-		{
-			pfnNotify(DriveStatusChanged);
-			Refresh();
-		}
+		m_isMounted = FatSys::IsDriveMounted(0);
+		DriveStatusChange(m_isMounted ? FatDrive::FDS_Mounted : FatDrive::FDS_Dismounted);
+		Refresh();
+	}
+
+	static void Close()				
+	{ 
+		s_curBrowser = NULL;
+		Lcd.DisablePip2(); 
 	}
 
 	void Refresh(bool fCreate = false)
 	{
 		// Should be called if edit box has new folder
 		FindLastFolder(strlen(s_bufPath));		// sets m_cchPath
-		m_pEdit->UpdateBuffer();
-		if (m_curDrive != -1)
-			FileOp.FolderEnum(s_bufPath, m_curDrive, m_cchPath, fCreate);
-	}
-
-	void Close()
-	{
-		Lcd.DisablePip2();
-	}
-
-	int SetDrive(int drive)
-	{
-		int		newDrive;
-
-		if (!((1 << drive) & m_driveMap))
-		{
-			// Drive isn't available
-			if (m_driveMap == 0)
-			{
-				FileError(s_noDrivesMsg);
-				newDrive = -1;
-			}
-			else
-			{
-				// Pick an available drive
-				for (newDrive = 0; newDrive < FAT_NUM_DRIVES && ((1 << newDrive) & m_driveMap) == 0; newDrive++);
-			}
-		}
-		else
-			newDrive = drive;
-
-		if (newDrive != m_curDrive)
-		{
-			// Changing drives, clean the slate
-			m_curDrive = newDrive;
-			s_bufPath[0] = '\0';
-			if (m_pfnNotify != NULL)
-				m_pfnNotify(DriveChanged);
-			Refresh();
-		}
-		return newDrive;
+		m_pBufLine->UpdateBuffer();
+		if (m_isMounted)
+			FileOp.FolderEnum(s_bufPath, 0, m_cchPath, fCreate);
 	}
 
 	//*********************************************************************
 	// Notifications
 
 	// Notification from Actions class
-	ListScroll *ListCapture(int x, int y, ScrollAreas spot)
+public:
+	static ListScroll *ListCapture(int x, int y, ScrollAreas spot)
+	{
+		return s_curBrowser->ScrollCapture(x, y, spot);
+	}
+
+protected:
+	ListScroll *ScrollCapture(int x, int y, ScrollAreas spot)
 	{
 		if (StartCapture(x, y - Lcd.GetPip2()->y, spot))
 			return this;
@@ -143,7 +88,15 @@ public:
 	}
 
 	// Notification from FileOperations class
-	void FolderEnumDone(int cntFiles)
+public:
+	static void FolderEnumDone(int cntFiles)
+	{
+		if (s_curBrowser != NULL)
+			s_curBrowser->EnumDone(cntFiles);
+	}
+
+protected:
+	void EnumDone(int cntFiles)
 	{
 		SetTotalLines(cntFiles);
 		qsort(((ushort *)FILE_BUF_END) - cntFiles, cntFiles, sizeof(ushort), (__compar_fn_t)CompareLinePtr);
@@ -151,23 +104,38 @@ public:
 	}
 
 	// Notification from FileOperations class
-	void DriveMountComplete(int drive)
+public:
+	static void DriveMountComplete(int drive)
 	{
-		m_driveMap |= 1 << drive;
-		if (m_curDrive == -1)
-			SetDrive(drive);
+		if (s_curBrowser != NULL)
+			s_curBrowser->MountComplete();
+	}
+
+protected:
+	void MountComplete()
+	{
+		m_isMounted = true;
+		Refresh();
 
 		if (m_pfnNotify != NULL)
-			m_pfnNotify(DriveStatusChanged);
+			m_pfnNotify(REASON_DriveStatusChanged);
 	}
 
 	// Notification from ToolLib class, from FileOperations class
-	void FileError(int err)
+public:
+	static void FileError(int err)
 	{
 		FileError(s_arErrMsg[-(err + 1)]);
 	}
 
-	void FileError(const char *psz = NULL)
+	static void FileError(const char *psz = NULL)
+	{
+		if (s_curBrowser != NULL)
+			s_curBrowser->DriveError(psz);
+	}
+
+protected:
+	void DriveError(const char *psz)
 	{
 		m_pErrMsg = psz;
 		SetTotalLines(psz == NULL ? 0 : 1);
@@ -175,18 +143,41 @@ public:
 	}
 
 	// Notification from FatSys class
-	void DriveStatusChange(int drive, int status)
+public:
+	static void FatDriveStatusChange(int drive, int status)
+	{
+		if (s_curBrowser != NULL)
+			s_curBrowser->DriveStatusChange(status);
+	}
+
+protected:
+	void DriveStatusChange(int status)
 	{
 		// Ignore Mount notification because the driver in 
 		// FileOperations hasn't finished yet.
 		if (status == FatDrive::FDS_Dismounted)
 		{
-			m_driveMap &= ~(1 << drive);
-			SetDrive(m_curDrive);	// See if still valid
-		}
+			m_isMounted = false;
+			DriveError(s_noDrivesMsg);
+			Refresh();
 
+			if (m_pfnNotify != NULL)
+				m_pfnNotify(REASON_DriveStatusChanged);
+		}
+	}
+
+	// Notification from UpdateMgr class
+public:
+	static void UpdateStatusChange(FileBrowser::NotifyReason reason)
+	{
+		s_curBrowser->StatusChange(reason);
+	}
+
+protected:
+	void StatusChange(FileBrowser::NotifyReason reason)
+	{
 		if (m_pfnNotify != NULL)
-			m_pfnNotify(DriveStatusChanged);
+			m_pfnNotify(reason);
 	}
 
 	//*********************************************************************
@@ -207,11 +198,7 @@ protected:
 		m_cchPath = pos;
 	}
 
-	//*********************************************************************
-	// Implement functions in ListScroll
-
-protected:
-	virtual void FillLine(int lineNum, Area *pArea)
+	void FillLine(int lineNum, Area *pArea, TextField &row)
 	{
 		ulong		size;
 		int			index;
@@ -223,8 +210,8 @@ protected:
 		if (lineNum < m_lineCnt)
 		{
 			// Clear all text
-			s_fileRow.SetArea(FileRow_Areas.AllText);
-			s_fileRow.ClearArea();
+			row.SetArea(FileRow_Areas.AllText);
+			row.ClearArea();
 
 			// Add file/folder icon
 			pInfo = PtrInfoFromLine(lineNum);
@@ -233,48 +220,43 @@ protected:
 			if (m_pErrMsg)
 			{
 				// Just use the AllText area set above
-				s_fileRow.SetTextColor(ToolLibSelected);
-				s_fileRow.WriteString(m_pErrMsg);
-				s_fileRow.SetTextColor(ToolLibForeground);
+				row.SetTextColor(ToolLibSelected);
+				row.printf(m_pErrMsg);
+				row.SetTextColor(ToolLibForeground);
 			}
 			else
 			{
 				if (pInfo->Type != INFO_Parent)
 				{
 					// Write filename
-					s_fileRow.SetArea(FileRow_Areas.FileName);
-					s_fileRow.WriteString(pInfo->Name);
+					row.SetArea(FileRow_Areas.FileName);
+					row.printf(pInfo->Name);
 				}
 
 				if (pInfo->Type == INFO_File)
 				{
 					// Date
-					s_fileRow.SetSpaceWidth(s_fileRow.GetCharWidth('0'));
-					s_fileRow.SetArea(FileRow_Areas.FileDate);
-					s_fileRow.printf("%2u/%02u/%u", pInfo->DateTime.date.month, 
+					row.SetSpaceWidth(row.GetCharWidth('0'));
+					row.SetArea(FileRow_Areas.FileDate);
+					row.printf("%2u/%02u/%u", pInfo->DateTime.date.month, 
 						pInfo->DateTime.date.day, pInfo->DateTime.date.year + FAT_YEAR_BASE);
 
 					// Time
-					s_fileRow.SetArea(FileRow_Areas.FileTime);
+					row.SetArea(FileRow_Areas.FileTime);
 					hours = pInfo->DateTime.time.hours;
+					pAmPm = s_amPm[hours < 12 ? 0 : 1];
 					if (hours > 12)
-					{
-						pAmPm = s_amPm[1];
 						hours -= 12;
-					}
-					else
-					{
-						pAmPm = s_amPm[0];
-						if (hours == 0)
-							hours = 12;
-					}
-					s_fileRow.printf("%2u:%02u", hours, pInfo->DateTime.time.minutes);
-					s_fileRow.SetSpaceWidth(0);
-					s_fileRow.printf(" %s", pAmPm);
-					s_fileRow.SetSpaceWidth(s_fileRow.GetCharWidth('0'));
+					else if (hours == 0)
+						hours = 12;
+
+					row.printf("%2u:%02u", hours, pInfo->DateTime.time.minutes);
+					row.SetSpaceWidth(0);
+					row.printf(" %s", pAmPm);
+					row.SetSpaceWidth(row.GetCharWidth('0'));
 
 					// Size
-					s_fileRow.SetArea(FileRow_Areas.FileSize);
+					row.SetArea(FileRow_Areas.FileSize);
 					size = pInfo->Size;
 					index = 0;
 					if (size >= 1000000)
@@ -287,9 +269,9 @@ protected:
 						size /= 1000;
 						index ++;
 					}
-					s_fileRow.printf("%3lu", size);
-					s_fileRow.SetSpaceWidth(0);
-					s_fileRow.printf(" %s", s_fmtSize[index]);
+					row.printf("%3lu", size);
+					row.SetSpaceWidth(0);
+					row.printf(" %s", s_fmtSize[index]);
 				}
 			}
 
@@ -309,9 +291,19 @@ protected:
 		}
 	}
 
+	//*********************************************************************
+	// Implement functions in ListScroll
+
+protected:
+	virtual void FillLine(int lineNum, Area *pArea)
+	{
+		FillLine(lineNum, pArea, s_fileRow);
+	}
+
 	virtual void LineSelected(int lineNum)
 	{
 		uint	cch;
+		NotifyReason	reason = REASON_FileSelected;
 		FileEnumInfo	*pInfo;
 
 		if (m_pErrMsg == NULL)
@@ -340,15 +332,16 @@ protected:
 					s_bufPath[m_cchPath++] = '/';
 EndFolder:
 					s_bufPath[m_cchPath] = '\0';
-					FileOp.FolderEnum(s_bufPath, m_curDrive, m_cchPath);
+					FileOp.FolderEnum(s_bufPath, 0, m_cchPath);
+					reason = REASON_FolderSelected;
 				}
 			}
 
-			m_pEdit->UpdateBuffer();
+			m_pBufLine->UpdateBuffer();
 		}
 
 		if (m_pfnNotify != NULL)
-			m_pfnNotify(SelectionChanged);
+			m_pfnNotify(reason);
 	}
 
 	//*********************************************************************
@@ -391,21 +384,21 @@ protected:
 	// instance (RAM) data
 	//*********************************************************************
 protected:
-	EditLine		*m_pEdit;
+	bool			m_isMounted;
+	ushort			m_cchPath;
+	BufferedLine	*m_pBufLine;
 	const char		*m_pErrMsg;
 	UpdateNotify	*m_pfnNotify;
-	ushort			m_cchPath;
-	sbyte			m_curDrive;
-	byte			m_driveMap;
 
 	//*********************************************************************
 	// static (RAM) data
 	//*********************************************************************
 protected:
+	inline static FileBrowser	*s_curBrowser;
 	inline static TextField	s_fileRow{FileRow, FileRow_Areas.FileName, 
 		FONT_CalcSmall, ToolLibForeground, ToolLibBackground};
 
-	inline static char		s_bufPath[MAX_PATH + 1];
+	inline static char			s_bufPath[MAX_PATH + 1];
 
 	//*********************************************************************
 	// const (flash) data
@@ -417,7 +410,7 @@ protected:
 	//*********************************************************************
 	// File error messages
 
-	inline static const char s_noDrivesMsg[] = "No drives available.";
+	inline static const char s_noDrivesMsg[] = "No flash drive.";
 
 	inline static const char * const s_arErrMsg[] = {
 		// From Storage.h
@@ -450,9 +443,3 @@ protected:
 };
 
 extern FileBrowser Files;
-
-inline void FatDriveStatusChange(int drive, int status)
-{
-	Files.DriveStatusChange(drive, status);
-}
-

@@ -10,12 +10,14 @@
 #include "PosSensor.h"
 #include "LcdDef.h"
 #include "RA8876.h"
-#include "FatFileSd.h"
 #include "UsbDro.h"
 #include "Actions.h"
 #include "FileOperations.h"
 #include "VersionUpdate.h"
 #include "GT9271.h"
+#include "LoadGraphics.h"
+#include "SplashScreen.h"
+
 
 //*********************************************************************
 // References
@@ -34,6 +36,10 @@ extern "C"
 //*********************************************************************
 // Static data
 //*********************************************************************
+
+byte	LcdStatus;
+ulong	GraphicsVersion;
+ulong	FontVersion;
 
 //*********************************************************************
 // Image descriptors
@@ -79,11 +85,11 @@ TouchMgr*	pTouch = &NoTouch;
 UsbDro		UsbPort;
 FileBrowser	Files;
 ToolLib		Tools;
+LoadGraphics Loader;
 
-FatSd			Sd;
 FatSys			FileSys;
 FileOperations	FileOp;
-FAT_DRIVES_LIST(&FlashDrive, &Sd);
+FAT_DRIVES_LIST(&FlashDrive);
 
 //********************************************************************
 // Define the four sensors
@@ -170,7 +176,6 @@ void PrintHelp()
 int main(void)
 {
 	RtcTime	timeCur, timeSave;
-	bool	lcdPresent;
 	bool	isTestPattern = false;
 
 	StartClock();
@@ -221,27 +226,59 @@ int main(void)
 	UsbPort.Enable();
 
 	// Initialize file system
-	Sd.SpiInit(SPIMISOPAD_Pad1, SPIOUTPAD_Pad2_MOSI_Pad3_SCK);
-	Sd.Enable();
 	FileSys.Init();
 
 	// Initialize LCD and touch if present
-	lcdPresent = Lcd.Init();
-	if (lcdPresent)
+	if (Lcd.Init())
 	{
-		// Copy serial data in graphics memory
-		Lcd.CopySerialMemToRam(FlashScreenStart, RamScreenStart, ScreenFileLength, SerialFlashPort);
-		Lcd.CopySerialMemToRam(FlashFontStart, RamFontStart, FontFileLength, SerialFlashPort);
+		DataFileHeader	header;
 
+		SplashScreen::Display();
+
+		// Copy cursors from program space to LCD RAM
 		Lcd.LoadGraphicsCursor(PointerCursor, GTCCR_GraphicCursorSelect1);
 		Lcd.LoadGraphicsCursor(TargetCursor, GTCCR_GraphicCursorSelect2);
 		Lcd.SetGraphicsCursorColors(0xFF, 0x00);
 
-		Lcd.SetMainImage(&MainScreen);
-		Lcd.DisplayOn();
+		// Verify graphics and fonts are valid for the code version
+		Lcd.SerialMemRead(FlashScreenStart, sizeof header, &header, 1);
+		Lcd.SerialMemRead(FlashScreenStart, sizeof header, &header, 1);	//give it 2 tries
+		
+		if (header.signature != GRAPHICS_SIGNATURE)
+		{
+			DEBUG_PRINT("Graphics signature invalid, got %lu\n", header.signature);
+			header.version = 0;
+		}
+		GraphicsVersion = header.version;
 
+		Lcd.SerialMemRead(FlashFontStart, sizeof header, &header, 1);
+
+		if (header.signature != FONT_SIGNATURE)
+		{
+			DEBUG_PRINT("Fonts signature invalid\n");
+			header.version = 0;
+		}
+		FontVersion = header.version;
+
+		if (GraphicsVersion == GRAPHICS_VERSION  && FontVersion == FONT_VERSION)
+		{
+			LcdStatus = LCD_Present;
+			
+			// Copy serial data in graphics memory
+			Lcd.CopySerialMemToRam(FlashScreenStart, RamScreenStart, ScreenFileLength, SerialFlashPort);
+			Lcd.CopySerialMemToRam(FlashFontStart, RamFontStart, FontFileLength, SerialFlashPort);
+		}
+		else
+		{
+			DEBUG_PRINT("Graphics or fonts versions do not match\n");
+			LcdStatus = LCD_InvalidFlash;
+		}
+		
+		Lcd.SetMainImage(&MainScreen);
+		Actions::Init();
+		
 		// Search for touch panel
-		for ( int i = 0; ; i++)
+		for ( int i = 0; i < 4; i++)
 		{
 			if (CapTouch.Init())
 			{
@@ -258,14 +295,7 @@ int main(void)
 			}
 
 			DEBUG_PRINT("No touch panel found\n");
-
-			if (i == 3)
-			{
-				// No touch panel, put up error message box. Mouse can still be used.
-				Lcd.EnablePip1(&NoTouchPanel, NoTouchLeft, NoTouchTop, true);
-				// Leave pTouch set to empty touch panel
-				break;
-			}
+			// Leave pTouch set to empty touch panel
 		}
 
 		// Initialize touch panel
@@ -275,19 +305,21 @@ int main(void)
 			// touch panel not calibrated
 			if (pTouch == &NoTouch)
 			{
-				// UNDONE: No touch panel, require mouse
+				// No touch panel, put up error message box. Mouse can still be used.
+				if (LcdStatus == LCD_Present)
+					Lcd.EnablePip1(&NoTouchPanel, NoTouchLeft, NoTouchTop, true);
 			}
 			else
 			{
 				TouchCalibrate::Open();
 			}
 		}
+		PrintHelp();
 		
-		Actions::Init();
-
 		DEBUG_PRINT("Graphics memory allocated: %lu bytes\n", Canvas::AllocVideoRam(0));
 
-		PrintHelp();
+		if (LcdStatus != LCD_Present)
+			Loader.Open();
 	}
 
 	// Start WDT now that initialization is complete
@@ -302,7 +334,6 @@ int main(void)
 	Timer	tmrAxis;
 	Timer	tmrFeed;
 	int		i;
-	bool	fSdOut = true;
 	RtcTime	timeLast{true};
 
 	tmrFeed.Start(tmrAxis.Start());
@@ -317,46 +348,6 @@ int main(void)
 		// Process EEPROM save if in progress
 		if (!Eeprom.Process())
 			PowerDown::Process();
-
-		// Check status of SD card
-		// UNDONE: disable SD while developing next version of PCB
-		if (false && !GetSdCd() == fSdOut && !FileOp.IsBusy())
-		{
-			fSdOut = !fSdOut;
-			if (fSdOut)
-			{
-				Sd.Dismount();
-				DEBUG_PRINT("SD card dismounted\n");
-			}
-			else
-			{
-				FileOp.Mount(Sd.GetDrive());
-				DEBUG_PRINT("SD card mounting...");
-			}
-		}
-
-		if (timeCur.ReadClock() != timeLast)
-		{
-			timeLast = timeCur;
-			Tools.ShowExportTime(timeCur);
-		}
-
-		// Update the axis position displays
-		if (tmrAxis.CheckInterval_rate(AxisUpdateRate))
-			AxisDisplay::UpdateAll();
-
-		// Update the current feed rate
-		if (tmrFeed.CheckInterval_rate(FeedUpdateRate))
-		{
-			double	deltaX, deltaY, deltaZ, delta;
-
-			deltaX = Xpos.GetDistance();
-			deltaY = Ypos.GetDistance();
-			deltaZ = Zpos.GetDistance();
-			delta = sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
-			// convert to per minute
-			Tools.ShowFeedRate(delta * 60.0 * FeedUpdateRate);
-		}
 
 		// Process USB events
 		i = UsbPort.Process();
@@ -422,7 +413,7 @@ int main(void)
 		FileOp.Process();
 
 		// Process screen touch
-		if (lcdPresent && pTouch->Process())
+		if (LcdStatus && pTouch->Process())
 		{
 			uint	flags;
 
@@ -465,7 +456,7 @@ FileErrChk:
 				goto FileErrChk;
 
 			case 'p':
-				if (lcdPresent)
+				if (LcdStatus)
 				{
 					if (isTestPattern)
 					{
@@ -483,7 +474,7 @@ FileErrChk:
 				break;
 
 			case 't':
-				if (lcdPresent)
+				if (LcdStatus)
 					TouchCalibrate::Open();
 				break;
 
@@ -492,9 +483,37 @@ FileErrChk:
 				break;
 
 			default:
-				if (lcdPresent)
+				if (LcdStatus)
 					PrintHelp();
 				break;
+			}
+		}
+		
+		if (LcdStatus == LCD_Present)
+		{
+			// The following is executed only if screen present and graphics & fonts are valid
+			//		
+			if (timeCur.ReadClock() != timeLast)
+			{
+				timeLast = timeCur;
+				Tools.ShowExportTime(timeCur);
+			}
+
+			// Update the axis position displays
+			if (tmrAxis.CheckInterval_rate(AxisUpdateRate))
+			AxisDisplay::UpdateAll();
+
+			// Update the current feed rate
+			if (tmrFeed.CheckInterval_rate(FeedUpdateRate))
+			{
+				double	deltaX, deltaY, deltaZ, delta;
+
+				deltaX = Xpos.GetDistance();
+				deltaY = Ypos.GetDistance();
+				deltaZ = Zpos.GetDistance();
+				delta = sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+				// convert to per minute
+				Tools.ShowFeedRate(delta * 60.0 * FeedUpdateRate);
 			}
 		}
     }

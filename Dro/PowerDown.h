@@ -48,8 +48,9 @@ public:
 public:
 	static void Process()
 	{
-		// Process is only called when the EEPROM is not busy, so it's
-		// ready to move to the next state.
+		if (!Nvm::IsReady())
+			return;
+
 		switch (s_state)
 		{
 		default: // PS_None
@@ -95,7 +96,7 @@ public:
 		WDT->CTRL.reg = WDT_CTRL_ENABLE;	// enable watchdog
 	}
 	
-	static void Save() INLINE_ATTR
+	static void Save()
 	{
 		PowerDownSave	&save = *s_pSaveNext;
 

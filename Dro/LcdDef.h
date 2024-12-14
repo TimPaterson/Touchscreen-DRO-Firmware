@@ -76,11 +76,11 @@ private:
 #endif
 
 	// Serial flash/ROM SPI settings
-	// Unit 0: not installed, set the same to avoid clock speed switching
-	static constexpr long MaxSpiClock0 = 30'000'000;
-
 	// Unit 1: serial flash
 	static constexpr long MaxSpiClock1 = 30'000'000;
+
+	// Unit 0: not installed, set the same to avoid clock speed switching
+	static constexpr long MaxSpiClock0 = MaxSpiClock1;
 
 	enum RA8876_InitValues
 	{

@@ -124,17 +124,17 @@ public:
 		return Seek(offset, hFile, STATE(flash, seek));
 	}
 
-	int ToolImport(const char *psz, int drive)
+	int ToolImport(const char *psz, int drive = 0)
 	{
 		return Open(psz, drive, OPENFLAG_OpenExisting | OPENFLAG_File, STATE(import, open));
 	}
 
-	int ToolExport(const char *psz, int drive)
+	int ToolExport(const char *psz, int drive = 0)
 	{
 		return Open(psz, drive, OPENFLAG_CreateAlways | OPENFLAG_File, STATE(Export, open));
 	}
 
-	int ReadUpdateHeader(const char *psz, int drive)
+	int ReadUpdateHeader(const char *psz, int drive = 0)
 	{
 		return Open(psz, drive, OPENFLAG_OpenExisting | OPENFLAG_File, STATE(header, open));
 	}
