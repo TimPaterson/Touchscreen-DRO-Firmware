@@ -13,13 +13,33 @@
 
 class TouchCalibrate_t : public TouchCanvas, ScreenMgr
 {
-	// Calibration target position
-	static constexpr int TouchEdgeOffsetX = ScreenWidth / 10;
-	static constexpr int TouchEdgeOffsetY = ScreenHeight / 10;
-	static constexpr int RightTarget = ScreenWidth - TouchEdgeOffsetX - 1;
-	static constexpr int BottomTarget = ScreenHeight - TouchEdgeOffsetY - 1;
+	// Calibration target positions
+	static constexpr int LeftTargetX = ScreenWidth / 10;
+	static constexpr int TopTargetY = ScreenHeight / 10;
+	static constexpr int RightTargetX = ScreenWidth - LeftTargetX - 1;
+	static constexpr int BottomTargetY = ScreenHeight - TopTargetY - 1;
 	static constexpr int MiddleTargetX = ScreenWidth / 2;
 	static constexpr int MiddleTargetY = ScreenHeight / 2;
+
+	// List of 3 or more points for calibration. Excellent results have been
+	// seen with 5 points. Each point adds about 40 bytes of constant data
+	// in program space.
+	#define TARGET_POINTS /* x, y, index */ \
+		TARGET(LeftTargetX,		BottomTargetY,	0) \
+		TARGET(LeftTargetX,		TopTargetY,		1) \
+		TARGET(MiddleTargetX,	MiddleTargetY,	2) \
+		TARGET(RightTargetX,	TopTargetY,		3) \
+		TARGET(RightTargetX,	BottomTargetY,	4) 
+
+	// This enum is for counting the number of calibration points
+	enum
+	{
+		#define TARGET(x, y, index)	TargetPoint_##index,
+		TARGET_POINTS
+		#undef TARGET
+
+		CalibrationPoints	// This will be set to the number of points
+	};
 
 	// Calibration
 	static constexpr int AbortFlag = -1;
@@ -35,8 +55,7 @@ class TouchCalibrate_t : public TouchCanvas, ScreenMgr
 	// Text messages
 	#define REPEAT_BTN_LABEL	"Calibrate"
 	#define DONE_BTN_LABEL		"Accept"
-	#define SKIP_BTN_LABEL		"Exit"
-	#define RESTART_LABEL		"Cycle power to restart calibration"
+	#define RESTART_LABEL		"Cycle power or click mouse to restart calibration"
 	#define VERIFY_LABEL		"Touch anywhere to verify accuracy"
 	// 16 x 32 internal font is used
 	static constexpr int CharHeight = 32;
@@ -49,7 +68,7 @@ class TouchCalibrate_t : public TouchCanvas, ScreenMgr
 	static constexpr int RepeatBtnWidth = ScreenWidth / 3;
 	static constexpr int RepeatBtnLeft = RepeatBtnWidth;
 	static constexpr int RepeatBtnTop = 0;
-	// Define the button quit
+	// Define the button to quit
 	static constexpr int DoneBtnHeight = RepeatBtnHeight / 2;
 	static constexpr int DoneBtnWidth = (STRLEN(DONE_BTN_LABEL) + 2) * ButtonCharWidth;
 	static constexpr int DoneBtnLeft = (ScreenWidth - DoneBtnWidth) / 2;
@@ -59,7 +78,6 @@ class TouchCalibrate_t : public TouchCanvas, ScreenMgr
 	static constexpr int RepeatTextLeft = (RepeatBtnWidth - STRLEN(REPEAT_BTN_LABEL) * ButtonCharWidth) / 2;
 	static constexpr int DoneTextTop = (DoneBtnHeight - ButtonCharHeight) / 2;
 	static constexpr int DoneTextLeft = (DoneBtnWidth - STRLEN(DONE_BTN_LABEL) * ButtonCharWidth) / 2;
-	static constexpr int SkipTextLeft = (DoneBtnWidth - STRLEN(SKIP_BTN_LABEL) * ButtonCharWidth) / 2;
 	// Position on screen
 	static constexpr int TextVertMargin = 6;
 	static constexpr int RestartTextTop = DoneBtnTop - CharHeight - TextVertMargin;
@@ -69,26 +87,11 @@ class TouchCalibrate_t : public TouchCanvas, ScreenMgr
 	static constexpr int VerifyTextLeft = (ScreenWidth - VerifyTextWidth) / 2;
 	static constexpr int VerifyTextBottom = VerifyTextTop - CharHeight;
 
+	// Used to draw the target on the screen
 	struct Target
 	{
-		// For initializing
-		#define TARGET(x, y) {{x, 0, 1, ScreenHeight}/*vert*/, {0, y, ScreenWidth, 1}/*horz*/}
-		#define TARGET_MID(x, y) {{x, 0, 1, RestartTextTop}/*vert*/, {0, y, ScreenWidth, 1}/*horz*/}
-
 		Area	vert;
 		Area	horz;
-
-		uint GetX()		{ return vert.Xpos; }
-		uint GetY()		{ return horz.Ypos; }
-	};
-
-	#define TargX(n)	s_Targets[n].vert.Xpos
-	#define TargY(n)	s_Targets[n].horz.Ypos
-
-	struct TouchPoint
-	{
-		int		x;
-		int		y;
 	};
 
 	// Imitate HotspotList
@@ -117,30 +120,20 @@ public:
 		HotspotData	*pSpot;
 
 		AllocIfNeeded();
-		m_oldImage = GetMainImage();
-		FillRect(this, GetViewArea(), BackColor);
-		SetMainImage(this);
-		DisablePip1();
-		DisablePip2();
-		
-		// Add restart label
 		SetupText(this, CCR0_CharHeight32 | CCR0_CharSet8859_1, 
 			CCR1_CharHeightX1 | CCR1_CharWidthX1 | CCR1_CharBackgroundTransparent);
-		SetForeColor(TextColor);
-		SetTextPosition(RestartTextLeft, RestartTextTop);
-		WriteString(RESTART_LABEL);
-
-		if (fShowButtons)
-			goto ShowButtons;
+		DisablePip1();
+		DisablePip2();
+		s_oldImage = GetMainImage();
+		SetMainImage(this);
 
 		for (;;) 
 		{
-			DrawDoneButton(SKIP_BTN_LABEL, SkipTextLeft);
-			StartCalibration();
+			if (!fShowButtons)
+				StartCalibration();
+			fShowButtons =  false;
 
-ShowButtons:
-			DrawDoneButton(DONE_BTN_LABEL, DoneTextLeft);
-			DrawCalButton();
+			DrawButtons();
 			for (;;) 
 			{
 				// This loop display a target where screen is being touched
@@ -155,11 +148,9 @@ ShowButtons:
 					{
 						if (pSpot->id == HOTSPOT_Done)
 							goto Abort;
-						else
-						{
-							EraseCalButton();
-							break;	// repeat
-						}
+
+						// must be HOTSPOT_Repeat
+						break;	// repeat calibration
 					}
 				}
 			}
@@ -171,69 +162,65 @@ Abort:
 		else
 			DisableGraphicsCursor();
 		Eeprom.StartSave();
-		SetMainImage(m_oldImage);
+		SetMainImage(s_oldImage);
 	}
 
 	//*********************************************************************
 	// Helpers
 	//*********************************************************************
 protected:
-	void DrawCalButton()
-	{
-		FillRect(this, &s_areaRepeatBtn, ButtonColor);
-
-		// Write the button label
-		SetForeColor(ButtonTextColor);
-		WriteReg(CCR1, CCR1_CharHeightX2 | CCR1_CharWidthX2 | CCR1_CharBackgroundTransparent);
-		SetTextPosition(RepeatBtnLeft + RepeatTextLeft, RepeatBtnTop + ReapeatTextTop);
-		WriteString(REPEAT_BTN_LABEL);
-		
-		// Now the verify message
+	void BlankScreen()	
+	{ 
+		FillRect(this, GetViewArea(), BackColor); 
+		// Add restart label
 		SetForeColor(TextColor);
 		WriteReg(CCR1, CCR1_CharHeightX1 | CCR1_CharWidthX1 | CCR1_CharBackgroundTransparent);
-		SetTextPosition(VerifyTextLeft, VerifyTextTop);
-		WriteString(VERIFY_LABEL);
+		SetTextPosition(RestartTextLeft, RestartTextTop);
+		WriteString(RESTART_LABEL);
 	}
 
-	void DrawDoneButton(const char *psz, int left)
+	void DrawButtons()
 	{
+		BlankScreen();
+
+		// Write the verify message. BlankScreen() sets X1 text.
+		SetTextPosition(VerifyTextLeft, VerifyTextTop);
+		WriteString(VERIFY_LABEL);
+
+		// Draw buttons
+		FillRect(this, &s_areaRepeatBtn, ButtonColor);
 		FillRect(this, &s_areaDoneBtn, ButtonColor);
 
 		// Write the labels
 		SetForeColor(ButtonTextColor);
 		WriteReg(CCR1, CCR1_CharHeightX2 | CCR1_CharWidthX2 | CCR1_CharBackgroundTransparent);
-		SetTextPosition(DoneBtnLeft + left, DoneBtnTop + DoneTextTop);
-		WriteString(psz);
-	}
-	
-	void EraseCalButton()
-	{
-		FillRect(this, &s_areaRepeat, BackColor);
+		SetTextPosition(RepeatBtnLeft + RepeatTextLeft, RepeatBtnTop + ReapeatTextTop);
+		WriteString(REPEAT_BTN_LABEL);
+
+		SetTextPosition(DoneBtnLeft + DoneTextLeft, DoneBtnTop + DoneTextTop);
+		WriteString(DONE_BTN_LABEL);
 	}
 
-	void DrawTarget(const Target &target, bool fErase = false)
+	void DrawTarget(const Target &target)
 	{
-		ulong color = fErase ? ScreenBackColor : TargetColor;
-		FillRect(this, &target.horz, color);
-		FillRect(this, &target.vert, color);
+		FillRect(this, &target.horz, TargetColor);
+		FillRect(this, &target.vert, TargetColor);
 	}
 
-	bool CalibrateTarget(const Target &target, TouchPoint &point)
+	bool CalibrateTarget(int index)
 	{
 		Timer	tmr;
 		int		flags;
 
-		DrawTarget(target);
+		BlankScreen();
+		DrawTarget(s_Targets[index]);
 
 Restart:
 		do 
 		{
 			flags = GetTouch();
 			if (flags == AbortFlag)
-			{
-				DrawTarget(target, true);	// Erase it
 				return true;
-			}
 		} while (!(flags & TOUCH_Start));
 
 		// Screen touched, make 'em hold it
@@ -248,77 +235,34 @@ Restart:
 		} while (!tmr.CheckDelay_ms(TouchTimeMs));
 
 		// Held on target for required time, use final value
-		point.x = pTouch->GetRawX();
-		point.y = pTouch->GetRawY();
+		SaveCalPoint(pTouch->GetRawX(), pTouch->GetRawY(), index);
 		
-		DEBUG_PRINT("Raw touch position: %i, %i\n", point.x, point.y);
-
-		// Now erase the target
-		DrawTarget(target, true);
 		return false;
-	}
-
-	static long DivLongLong(long long num, long den) NO_INLINE_ATTR
-	{
-		return ShiftIntRnd(num * 2 / den, 1);
-	}
-
-	static long DivScale(long num, long den)
-	{
-		return DivLongLong((long long)num << TouchShift, den);
 	}
 
 	bool StartCalibration()
 	{
-		int		val, k;
-		long long	c1, c2, c3, baseX, baseY;
+		for (int i = 0; i < CalibrationPoints; i++)
+		{
+			if (CalibrateTarget(i))
+				return true;
+		}
 
-		if (CalibrateTarget(s_Targets[0], m_points[0]))
-			return true;
-		if (CalibrateTarget(s_Targets[1], m_points[1]))
-			return true;
-		if (CalibrateTarget(s_Targets[2], m_points[2]))
-			return true;
-
-		// Equations for 3-point touch calibration were found at
-		// https://www.embedded.com/how-to-calibrate-touch-screens/
-		//
 		// A .pdf from Texas Instruments called "Calibration in touch-screen systems"
-		// also has these equations with an explanation of how to extend it
-		// to more points, with an example of 5 points.
+		// has the matrix equations for calibration with 3 or more points.
 
-		k = (m_points[0].x - m_points[2].x) * (m_points[1].y - m_points[2].y) -
-			(m_points[1].x - m_points[2].x) * (m_points[0].y - m_points[2].y);
+		MatrixMultiply(Transposed, TouchPoints, Extended, CalibrationPoints, 3);
+		MatrixInverse();
+		MatrixMultiply(Inverse, Transposed, Solution, 3, CalibrationPoints);
+		MatrixMultiply(Solution, Targets, TouchPoints, CalibrationPoints, 2);
 
-		val = (TargX(0) - TargX(2)) * (m_points[1].y - m_points[2].y) -
-			(TargX(1) - TargX(2)) * (m_points[0].y - m_points[2].y);
-		Eeprom.Data.TouchInit.scaleX.aScale = DivScale(val, k);
+		Eeprom.Data.TouchInit.scaleX.aScale = lround(TouchPoints[0][0] * TouchScale);
+		Eeprom.Data.TouchInit.scaleX.bScale = lround(TouchPoints[1][0] * TouchScale);
+		Eeprom.Data.TouchInit.scaleX.base =   lround(TouchPoints[2][0]);
 
-		val = (TargX(1) - TargX(2)) * (m_points[0].x - m_points[2].x) -
-			(TargX(0) - TargX(2)) * (m_points[1].x - m_points[2].x);
-		Eeprom.Data.TouchInit.scaleX.bScale = DivScale(val, k);
-
-		val = (TargY(1) - TargY(2)) * (m_points[0].x - m_points[2].x) -
-			(TargY(0) - TargY(2)) * (m_points[1].x - m_points[2].x);
-		Eeprom.Data.TouchInit.scaleY.aScale = DivScale(val, k);
-
-		val = (TargY(0) - TargY(2)) * (m_points[1].y - m_points[2].y) -
-			(TargY(1) - TargY(2)) * (m_points[0].y - m_points[2].y);
-		Eeprom.Data.TouchInit.scaleY.bScale = DivScale(val, k);
-
-		// Final calculation exceeds int, use long long
-		c1 = m_points[1].x * m_points[2].y - m_points[2].x * m_points[1].y;
-		c2 = m_points[2].x * m_points[0].y - m_points[0].x * m_points[2].y;
-		c3 = m_points[0].x * m_points[1].y - m_points[1].x * m_points[0].y;
-		baseX = c1 * TargX(0) + c2 * TargX(1) + c3 * TargX(2);
-		baseY = c1 * TargY(0) + c2 * TargY(1) + c3 * TargY(2);
-
-		// compute rounded 32-bit result of division
-		val = DivLongLong(baseX, k);
-		Eeprom.Data.TouchInit.scaleX.base = val;
-
-		val = DivLongLong(baseY, k);
-		Eeprom.Data.TouchInit.scaleY.base = val;
+		Eeprom.Data.TouchInit.scaleY.bScale = lround(TouchPoints[0][1] * TouchScale);
+		Eeprom.Data.TouchInit.scaleY.aScale = lround(TouchPoints[1][1] * TouchScale);
+		Eeprom.Data.TouchInit.scaleY.base =	  lround(TouchPoints[2][1]);
 
 		return false;
 	}
@@ -352,30 +296,164 @@ Restart:
 			SetGraphicsCursorPosition(pTouch->GetX() - 16, pTouch->GetY() - 16);
 		}
 		else
-			DisableGraphicsCursor();				
+			DisableGraphicsCursor();
 
 		return flags;
 	}
 
+protected:
+	// A global buffer is used for intermediate results during calibration.
+	// This struct defines the layout.
+	//
+	struct CalibrateData
+	{
+		double TouchPointMatrix[CalibrationPoints][3];
+		double TransposedMatrix[3][CalibrationPoints];
+		double ExtendedMatrix[3][6];	// Inverse is the right half of each row
+		double SolutionMatix[3][CalibrationPoints];
+	};
+
+	// The matrices used for calibration have an array of pointers pointing to
+	// each row. This allows MatrixInverse() to use an "extended" matrix where
+	// each row is double length, with the first half the inputs and the second
+	// half the outputs. So Extended is an array pointing to the first entry
+	// of each row, and Inverse points to the fourth entry in each row.
+	//
+	// All row pointer arrays are in fixed and therefore in flash.
+	//
+	static void MatrixInverse()
+	{
+		// Extend this matrix with the identity matrix
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+				Inverse[i][j] = i == j ? 1 : 0;
+		}
+
+		// scale and subtract a row to zero out an element of another row
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				if (i != j)
+				{
+					double temp = Extended[j][i] / Extended[i][i];
+					for (int k = 0; k < 6; k++)
+						Extended[j][k] -= Extended[i][k] * temp;
+				}
+			}
+		}
+
+		// scale each row by its one non-zero element
+		for (int i = 0; i < 3; i++)
+		{
+			double temp = Extended[i][i];
+			for (int j = 3; j < 6; j++)
+				Extended[i][j] /= temp;
+		}
+	}
+
+	static void MatrixMultiply(const double * const in1[], const double * const in2[], double * const out[], int in1Cols, int in2Cols)
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < in2Cols; j++)
+			{
+				double sum = 0;
+				for (int k = 0; k < in1Cols; k++)
+					sum += in1[i][k] * in2[k][j];
+				out[i][j] = sum;
+			}
+		}
+	}
+
+	// map the data to the global buffer
+	#define DATA	(*(CalibrateData *)&g_FileBuf)
+
+	static void SaveCalPoint(ushort x, ushort y, int index)
+	{
+		// when saving the data, also save it in a transposed matrix
+		DATA.TouchPointMatrix[index][0] = DATA.TransposedMatrix[0][index] = (double)x;
+		DATA.TouchPointMatrix[index][1] = DATA.TransposedMatrix[1][index] = (double)y;
+		DATA.TouchPointMatrix[index][2] = DATA.TransposedMatrix[2][index] = 1;
+	}
+
+	// convenient for debugging
+	static void PrintMatrix(double * const in[], int rows, int cols)
+	{
+		for (int i = 0; i < rows; i++)
+		{
+			for (int j = 0; j < cols; j++)
+				printf("%g ", in[i][j]);
+			printf("\n");
+		}
+	}
+
 	//*********************************************************************
-	// instance (RAM) data
+	// static (RAM) data
 	//*********************************************************************
 protected:
-	TouchCanvas *m_oldImage;
-	TouchPoint	m_points[3];
+	inline static TouchCanvas *s_oldImage;
 	
 	//*********************************************************************
 	// const (flash) data
 	//*********************************************************************
 protected:
-	inline static const ScaleMatrix s_calibMatrix = { TouchScale, 0, 0 };
-
-	inline static const Target s_Targets[3] =
+	// array of target points as used by the drawing engine
+	inline static const Target s_Targets[CalibrationPoints] =
 	{
-		TARGET(TouchEdgeOffsetX, BottomTarget),
-		TARGET_MID(MiddleTargetX, TouchEdgeOffsetY),
-		TARGET(RightTarget, MiddleTargetY),
+		#define TARGET(x, y, i) {{x, 0, 1, ScreenHeight}, {0, y, ScreenWidth, 1}},
+
+		TARGET_POINTS
+
+		#undef TARGET
 	};
+
+	// array of target points as used for matrix math
+	inline static const double TargetMatrix[CalibrationPoints][2] =
+	{
+		#define TARGET(x, y, i)	{x, y},
+
+		TARGET_POINTS
+
+		#undef TARGET
+	};
+
+	// array of pointers to first element in each row of TargetMatrix
+	inline static const double * const Targets[CalibrationPoints] =
+	{
+		#define TARGET(x, y, i)	TargetMatrix[i],
+
+		TARGET_POINTS
+
+		#undef TARGET
+	};
+
+	// array of pointers to first element in each row of TouchPointMatrix
+	inline static double * TouchPoints[CalibrationPoints] =
+	{
+		#define TARGET(x, y, i)	DATA.TouchPointMatrix[i],
+
+		TARGET_POINTS
+
+		#undef TARGET
+	};
+
+	// array of pointers to first element in each row of  corresponding matrix
+
+	inline static double * const Transposed[3] = 
+		{ DATA.TransposedMatrix[0], DATA.TransposedMatrix[1], DATA.TransposedMatrix[2] };
+
+	inline static double * const Extended[3] = 
+		{ DATA.ExtendedMatrix[0], DATA.ExtendedMatrix[1], DATA.ExtendedMatrix[2] };
+
+	inline static double * const Inverse[3] = 
+		{ &DATA.ExtendedMatrix[0][3], &DATA.ExtendedMatrix[1][3], &DATA.ExtendedMatrix[2][3] };
+
+	inline static double * const Solution[3] = 
+		{ DATA.SolutionMatix[0], DATA.SolutionMatix[1], DATA.SolutionMatix[2] };
+
+	#undef DATA
 
 	inline static const Area s_areaDoneBtn = { DoneBtnLeft, DoneBtnTop, DoneBtnWidth, DoneBtnHeight };
 	inline static const Area s_areaRepeatBtn = { RepeatBtnLeft, RepeatBtnTop, RepeatBtnWidth, RepeatBtnHeight };
