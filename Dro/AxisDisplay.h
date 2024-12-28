@@ -54,6 +54,9 @@ public:
 public:
 	bool IsVisible()				{ return m_pAxisPos != NULL; }
 	void SetTextColor(ulong color)	{ m_textColor = color; }
+
+public:
+	static bool HasCompound()		{ return s_latheZprimePos != NULL; }
 		
 public:
 	void UpdateDisplay()
@@ -152,8 +155,15 @@ public:
 						
 				if (s_latheZpos != NULL)
 					s_latheZpos->SetSensor(s_latheZprimePos);
+					
+				Lcd.CopyRect(&LatheMain, &LatheMain_Areas.CompoundAngleDisplay, &CompoundAngleDisplay);
 			}
-			
+			else
+			{
+				Lcd.FillRect(&LatheMain, &LatheMain_Areas.CompoundAngleDisplay, ScreenBackColor);
+				Eeprom.Data.fCompoundFactor = false;
+			}
+				
 			// Tailstock
 			if (s_latheTpos != NULL)
 			{

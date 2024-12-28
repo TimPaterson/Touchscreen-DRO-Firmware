@@ -760,10 +760,15 @@ SetNull:
 
 	static void ShowCompoundEnable()
 	{
-		Lcd.SelectImage(&LatheMain, &LatheMain_Areas.CompoundEnable, &OnOffBtn, Eeprom.Data.fCompoundFactor);
+		if (AxisDisplay::HasCompound())
+		{
+			Lcd.SelectImage(&LatheMain, &LatheMain_Areas.CompoundEnable, &OnOffBtn, Eeprom.Data.fCompoundFactor);
 
-		// See if we're sharing third display between Z' and T
-		AxisDisplay::ShareT();
+			// See if we're sharing third display between Z' and T
+			AxisDisplay::ShareT();
+		}
+		else
+			Eeprom.Data.fCompoundFactor = false;
 	}
 
 	static void ShowMillLathe()
