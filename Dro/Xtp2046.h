@@ -186,11 +186,11 @@ protected:
 
 		Select();
 		// Read twice to get stable values
-		SpiByte(bControl);
-		SpiByte();
-		SpiByte(bControl);
-		val = SpiByte() << 5;
-		val |= SpiByte() >> 3;
+		WriteByte(bControl);
+		WriteByte();
+		WriteByte(bControl);
+		val = WriteByte() << 5;
+		val |= WriteByte() >> 3;
 		Deselect();
 		return val;
 	}

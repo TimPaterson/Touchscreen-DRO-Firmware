@@ -82,8 +82,8 @@ public:
 
 		AdjustOrigin(undo.value[undo.cur]);
 		undo.value[undo.cur] = 0;
-		if (--undo.cur < 0)
-			undo.cur = UndoLevels;
+		if (undo.cur-- == 0)
+			undo.cur = UndoLevels - 1;
 		undo.count--;
 		return true;
 	}

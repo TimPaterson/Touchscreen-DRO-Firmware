@@ -16,7 +16,7 @@
 #include "FatFileDef.h"
 
 
-#define PROGRAM_VERSION		8
+#define PROGRAM_VERSION		9
 #define FLASH_VERSION		2
 
 // Get graphics and font versions from their respective header files
