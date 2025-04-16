@@ -1,11 +1,8 @@
 # Firmware for Smart Touchscreen DRO Project
-### Latest Updates - Release v.5
-- The LT7683 graphics chip is now supported. 
-[BuyDisplay.com](https://www.buydisplay.com/serial-spi-i2c-10-1-inch-tft-lcd-module-dislay-w-ra8876-optl-touch-panel)
-is using this chip in place of the RA8876.
-- The capacitive touch panel (CTP) is now supported (as well as the original resistive touch panel). The 
-CTP costs only slightly more and gives more precise results, unaffected by touch pressure. Like a phone
-touchscreen, it will *not* respond to an inanimate object (e.g., a pen).
+### Latest Updates - Release v.9
+- Supports use with a lathe by changing a selection in Settings. Lathe tool library is not yet implemented.
+- Touch calibration expanded to 5 points, which improves overall accuracy.
+- Will self-start on first-time startup without requiring a serial connection.
 
 ### Introduction
 This is the repository for the code for the [Smart Touchscreen DRO](https://github.com/TimPaterson/TouchscreenDigitalReadout).
@@ -20,10 +17,14 @@ This repository contains two projects:
  [Microchip-SAM-Library](https://github.com/TimPaterson/Microchip-SAM-Library)
  repository in a sibling directory.
 
+ ### Initial Start-Up
+ Once the MCU is programmed and connected to a touchscreen, it will automatically go into touch
+ calibration. When calibration is complete, a flash drive with a firmware update file needs to
+ be connected to its USB port. The DRO will allow you to browse the flash drive for the update file, and 
+ select it for programming. This will load all the necessary graphics and fonts, and the DRO
+ will be ready to go!
+
  ### Additional Tools
  The following additional tools were used to create the screen images and fonts, available on GitHub:
  - Images (`Screen.bin`): [ScreenDesigner-for-touchscreens](https://github.com/TimPaterson/ScreenDesigner-for-touchscreens)
  - Fonts (`Fonts.bin`): [FontGenerator-embedded-systems](https://github.com/TimPaterson/FontGenerator-embedded-systems)
-
- Initial start-up of the DRO requires a serial connection to download the graphics and fonts.
- The Windows app `ComTest.exe` has been included in the `bin` folder and in the Release for that purpose.
